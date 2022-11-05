@@ -1,0 +1,21 @@
+{
+  "name": "pepperstake-contracts",
+  "version": "0.1.0",
+  "description": "Contracts for PepperStake Protocol",
+  "scripts": {
+    "deploy-goerli": "source .env && forge script DeployGoerli --rpc-url $GOERLI_RPC_PROVIDER_URL --broadcast --verify --etherscan-api-key $ETHERSCAN_API_KEY --sender $SENDER_ADDRESS --optimize --optimizer-runs 200 -vvv --private-key $PRIVATE_KEY"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pepperstake/pepperstake-contracts.git"
+  },
+  "keywords": [
+    "Solidity"
+  ],
+  "author": "Jonathan Miller",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/pepperstake/pepperstake-contracts/issues"
+  },
+  "homepage": "https://github.com/pepperstake/pepperstake-contracts#readme"
+}
