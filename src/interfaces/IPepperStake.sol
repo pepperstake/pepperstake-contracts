@@ -5,19 +5,19 @@ interface IPepperStake {
     event Stake(address indexed participant, uint256 amount);
     event Sponsor(address indexed participant, uint256 amount);
     event ReturnStake(
-        address indexed sponsor,
+        address indexed supervisor,
         address[] completingParticipants,
         uint256 amount
     );
     event DistributeUnreturnedStake(
         address indexed caller,
-        address[] unreturnedStakeBeneficiaries,
+        address[] beneficiaries,
         uint256 totalUnreturnedStake,
-        uint256 sSharePerBeneficiary
+        uint256 sharePerBeneficiary
     );
     event DistributeSponsorContribution(
         address indexed caller,
-        address[] sponsorContributionBeneficiaries,
+        address[] beneficiaries,
         uint256 totalSponsorContribution,
         uint256 sharePerBeneficiary
     );

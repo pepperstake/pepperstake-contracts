@@ -21,6 +21,11 @@ contract PepperStake is IPepperStake {
     // --------------------- public stored properties -------------------- //
     //*********************************************************************//
 
+    struct ParticipantData {
+        bool participated;
+        bool completed;
+    }
+
     mapping(address => bool) public supervisors;
     uint256 public stakeAmount;
 
@@ -33,7 +38,7 @@ contract PepperStake is IPepperStake {
 
     // Internal State
     address[] public participantList;
-    mapping(address => uint256) public participants;
+    mapping(address => ParticipantData) public participants;
     uint256 public returnWindowEndTimestamp;
     uint256 public participantCount;
     uint256 public completingParticipantCount;
@@ -96,12 +101,17 @@ contract PepperStake is IPepperStake {
         if (participantCount >= maxParticipants)
             revert MAX_PARTICIPANTS_REACHED();
         if (msg.value != stakeAmount) revert INCORRECT_STAKE_AMOUNT();
-        if (participants[msg.sender] != 0) revert ALREADY_PARTICIPATING();
+        if (participants[msg.sender].participated)
+            revert ALREADY_PARTICIPATING();
         if (block.timestamp > returnWindowEndTimestamp)
             revert RETURN_WINDOW_OVER();
 
         participantList.push(msg.sender);
-        participants[msg.sender] = msg.value;
+        ParticipantData memory participantData = ParticipantData({
+            participated: true,
+            completed: false
+        });
+        participants[msg.sender] = participantData;
         participantCount++;
 
         emit Stake(msg.sender, msg.value);
@@ -120,14 +130,14 @@ contract PepperStake is IPepperStake {
         if (block.timestamp > returnWindowEndTimestamp)
             revert RETURN_WINDOW_OVER();
         for (uint256 i = 0; i < completingParticipants.length; i++) {
-            if (participants[completingParticipants[i]] == 0)
+            if (!participants[completingParticipants[i]].participated)
                 revert INVALID_PARTICIPANT();
         }
 
         for (uint256 i = 0; i < completingParticipants.length; i++) {
             address payable participant = payable(completingParticipants[i]);
             participant.transfer(stakeAmount);
-            participants[participant] = 0;
+            participants[participant].completed = true;
             completingParticipantCount++;
         }
         isReturnStakeCalled = true;
@@ -139,6 +149,7 @@ contract PepperStake is IPepperStake {
         if (participantCount - completingParticipantCount > 0) {
             address[] memory beneficiaries;
             if (shouldUseSupervisorInactionGuard && !isReturnStakeCalled) {
+                // Inaction Guard is true, no supervisor ever called returnStake()
                 beneficiaries = participantList;
             } else {
                 beneficiaries = unreturnedStakeBeneficiaries;
@@ -164,17 +175,22 @@ contract PepperStake is IPepperStake {
         if (completingParticipantCount > 0) {
             uint256 beneficiaryShare = totalSponsorContribution /
                 completingParticipantCount;
+            address[] memory beneficiaries = new address[](
+                completingParticipantCount
+            );
+            uint256 beneficiaryIndex = 0;
             for (uint256 i = 0; i < participantCount; i++) {
                 address participant = participantList[i];
-                if (participants[participant] == 0) {
+                if (participants[participant].completed) {
                     payable(participant).transfer(beneficiaryShare);
+                    beneficiaries[beneficiaryIndex] = participant;
+                    beneficiaryIndex++;
                 }
             }
 
             emit DistributeSponsorContribution(
                 msg.sender,
-                // TODO: get completing participants
-                new address[](0),
+                beneficiaries,
                 totalSponsorContribution,
                 beneficiaryShare
             );
