@@ -5,7 +5,7 @@ import "../src/PepperStake.sol";
 import "../src/PepperStakeDeployer.sol";
 import "forge-std/Script.sol";
 
-contract DeployGoerli is Script {
+contract Deploy is Script {
     PepperStakeDeployer pepperStakeDeployer;
 
     function run() external {
