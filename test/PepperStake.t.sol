@@ -43,7 +43,8 @@ contract PepperStakeTest is Test {
             100,
             false,
             true,
-            ""
+            "",
+            new address[](0)
         );
         return pepperStake;
     }
@@ -83,7 +84,8 @@ contract PepperStakeTest is Test {
             0,
             false,
             true,
-            ""
+            "",
+            new address[](0)
         );
         vm.startPrank(_participant);
         vm.expectRevert(

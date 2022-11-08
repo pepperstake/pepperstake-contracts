@@ -24,6 +24,7 @@ interface IPepperStakeDeployer {
         uint256 _maxParticipants,
         bool _shouldParticipantsShareUnreturnedStake,
         bool _shouldUseSupervisorInactionGuard,
-        string memory _metadataURI
+        string memory _metadataURI,
+        address[] memory _oracleDelegates
     ) external returns (IPepperStake pepperStake);
 }

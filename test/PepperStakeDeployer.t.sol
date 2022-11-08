@@ -21,7 +21,8 @@ contract PepperStakeDeployerTest is Test {
             100,
             false,
             true,
-            ""
+            "",
+            new address[](0)
         );
         assertTrue(address(pepperStake) != address(0));
     }

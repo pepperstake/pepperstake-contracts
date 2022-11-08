@@ -27,7 +27,8 @@ contract PepperStakeDeployer is IPepperStakeDeployer {
         uint256 _maxParticipants,
         bool _shouldParticipantsShareUnreturnedStake,
         bool _shouldUseSupervisorInactionGuard,
-        string memory _metadataURI
+        string memory _metadataURI,
+        address[] memory _oracleDelegates
     ) external returns (IPepperStake pepperStake) {
         pepperStake = new PepperStake(
             _supervisors,
@@ -37,7 +38,8 @@ contract PepperStakeDeployer is IPepperStakeDeployer {
             _maxParticipants,
             _shouldParticipantsShareUnreturnedStake,
             _shouldUseSupervisorInactionGuard,
-            _metadataURI
+            _metadataURI,
+            _oracleDelegates
         );
         emit DeployPepperStake(
             pepperStake,
