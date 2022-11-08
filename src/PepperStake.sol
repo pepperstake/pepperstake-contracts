@@ -2,6 +2,8 @@
 pragma solidity ^0.8.13;
 
 import "./interfaces/IPepperStake.sol";
+import "./interfaces/IPepperStakeOracleDelegate.sol";
+import "forge-std/console.sol";
 
 contract PepperStake is IPepperStake {
     //*********************************************************************//
@@ -16,6 +18,7 @@ contract PepperStake is IPepperStake {
     error CALLER_IS_NOT_SUPERVISOR();
     error INVALID_PARTICIPANT();
     error POST_RETURN_WINDOW_DISTRIBUTION_ALREADY_CALLED();
+    error INVALID_ORACLE_DELEGATE();
 
     //*********************************************************************//
     // --------------------- public stored properties -------------------- //
@@ -27,6 +30,7 @@ contract PepperStake is IPepperStake {
     }
 
     mapping(address => bool) public supervisors;
+    mapping(address => bool) public oracleDelegates;
     uint256 public stakeAmount;
 
     address[] public unreturnedStakeBeneficiaries;
@@ -54,7 +58,8 @@ contract PepperStake is IPepperStake {
         uint256 _maxParticipants,
         bool _shouldParticipantsShareUnreturnedStake,
         bool _shouldUseSupervisorInactionGuard,
-        string memory _metadataURI
+        string memory _metadataURI,
+        address[] memory _oracleDelegateAddresses
     ) {
         for (uint256 i = 0; i < _supervisors.length; i++) {
             supervisors[_supervisors[i]] = true;
@@ -66,6 +71,11 @@ contract PepperStake is IPepperStake {
         shouldParticipantsShareUnreturnedStake = _shouldParticipantsShareUnreturnedStake;
         shouldUseSupervisorInactionGuard = _shouldUseSupervisorInactionGuard;
         metadataURI = _metadataURI;
+        for (uint256 i = 0; i < _oracleDelegateAddresses.length; i++) {
+            oracleDelegates[_oracleDelegateAddresses[i]] = true;
+            supervisors[_oracleDelegateAddresses[i]] = true;
+        }
+        supervisors[address(this)] = true;
 
         returnWindowEndTimestamp =
             block.timestamp +
@@ -79,6 +89,14 @@ contract PepperStake is IPepperStake {
 
     function IS_SUPERVISOR(address _supervisor) external view returns (bool) {
         return supervisors[_supervisor];
+    }
+
+    function IS_ORACLE_DELEGATE(address _oracleDelegate)
+        external
+        view
+        returns (bool)
+    {
+        return oracleDelegates[_oracleDelegate];
     }
 
     function END_TIMESTAMP() public view returns (uint256) {
@@ -143,6 +161,29 @@ contract PepperStake is IPepperStake {
         isReturnStakeCalled = true;
 
         emit ReturnStake(msg.sender, completingParticipants, stakeAmount);
+    }
+
+    function checkOracle(
+        address _oracleDelegate,
+        address[] memory participantsToCheck
+    ) external {
+        if (!oracleDelegates[_oracleDelegate]) revert INVALID_ORACLE_DELEGATE();
+        IPepperStakeOracleDelegate oracleDelegate = IPepperStakeOracleDelegate(
+            _oracleDelegate
+        );
+        (bool[] memory results, uint256 completionCount) = oracleDelegate
+            .checkForAddresses(participantsToCheck);
+        address[] memory completingParticipants = new address[](
+            completionCount
+        );
+        uint256 winnerCount = 0;
+        for (uint256 i = 0; i < results.length; i++) {
+            if (results[i]) {
+                completingParticipants[winnerCount] = participantsToCheck[i];
+                winnerCount++;
+            }
+        }
+        this.returnStake(completingParticipants);
     }
 
     function _distributeUnreturnedStake() private {
