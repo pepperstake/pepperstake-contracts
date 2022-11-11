@@ -6,9 +6,11 @@ import "./PepperStake.sol";
 
 contract PepperStakeDeployer is IPepperStakeDeployer {
     uint256 public protocolFee;
+    address public protocolFeeBeneficiary;
 
-    constructor(uint256 _protocolFee) {
+    constructor(uint256 _protocolFee, address _protocolFeeBeneficiary) {
         protocolFee = _protocolFee;
+        protocolFeeBeneficiary = _protocolFeeBeneficiary;
     }
 
     //*********************************************************************//

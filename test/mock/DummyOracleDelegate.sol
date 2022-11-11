@@ -6,7 +6,7 @@ import "../../src/interfaces/IPepperStakeOracleDelegate.sol";
 contract DummyOracleDelegate is IPepperStakeOracleDelegate {
     function checkForAddresses(address[] memory addresses)
         external
-        view
+        pure
         override
         returns (bool[] memory, uint256 completionCount)
     {

@@ -11,7 +11,7 @@ contract Deploy is Script {
     function run() external {
         vm.startBroadcast();
 
-        pepperStakeDeployer = new PepperStakeDeployer(0);
+        pepperStakeDeployer = new PepperStakeDeployer(0, address(0));
 
         console.log(address(pepperStakeDeployer));
     }

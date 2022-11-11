@@ -9,7 +9,7 @@ contract PepperStakeDeployerTest is Test {
     PepperStakeDeployer public pepperStakeDeployer;
 
     function setUp() public {
-        pepperStakeDeployer = new PepperStakeDeployer(0);
+        pepperStakeDeployer = new PepperStakeDeployer(0, address(0));
     }
 
     function testDeployPepperStake() public {
