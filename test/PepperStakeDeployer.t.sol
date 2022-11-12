@@ -4,6 +4,7 @@ pragma solidity ^0.8.13;
 import "forge-std/Test.sol";
 import "../src/PepperStakeDeployer.sol";
 import "../src/interfaces/IPepperStake.sol";
+import "../src/structs/LaunchPepperStakeData.sol";
 
 contract PepperStakeDeployerTest is Test {
     PepperStakeDeployer public pepperStakeDeployer;
@@ -13,16 +14,21 @@ contract PepperStakeDeployerTest is Test {
     }
 
     function testDeployPepperStake() public {
-        IPepperStake pepperStake = pepperStakeDeployer.deployPepperStake(
+        LaunchPepperStakeData memory launchData = LaunchPepperStakeData(
+            new address[](0),
+            new address[](0),
+            new address[](0),
             new address[](0),
             0.05 ether,
-            new address[](0),
             14,
             100,
             false,
+            false,
             true,
-            "",
-            new address[](0)
+            ""
+        );
+        IPepperStake pepperStake = pepperStakeDeployer.deployPepperStake(
+            launchData
         );
         assertTrue(address(pepperStake) != address(0));
     }

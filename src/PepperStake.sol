@@ -1,9 +1,13 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.13;
 
+import "forge-std/console.sol";
+
 import "./interfaces/IPepperStake.sol";
 import "./interfaces/IPepperStakeOracleDelegate.sol";
-import "forge-std/console.sol";
+
+import "./structs/ParticipantData.sol";
+import "./structs/LaunchPepperStakeData.sol";
 
 contract PepperStake is IPepperStake {
     //*********************************************************************//
@@ -11,6 +15,7 @@ contract PepperStake is IPepperStake {
     //*********************************************************************//
 
     error MAX_PARTICIPANTS_REACHED();
+    error PARTICIPANT_NOT_ALLOWED();
     error INCORRECT_STAKE_AMOUNT();
     error ALREADY_PARTICIPATING();
     error RETURN_WINDOW_OVER();
@@ -24,25 +29,21 @@ contract PepperStake is IPepperStake {
     // --------------------- public stored properties -------------------- //
     //*********************************************************************//
 
-    struct ParticipantData {
-        bool participated;
-        bool completed;
-    }
-
+    mapping(address => ParticipantData) public participants;
     mapping(address => bool) public supervisors;
     mapping(address => bool) public oracleDelegates;
-    uint256 public stakeAmount;
 
+    uint256 public stakeAmount;
     address[] public unreturnedStakeBeneficiaries;
     uint256 public returnWindowDays;
     uint256 public maxParticipants;
+    bool public shouldUseParticipantAllowList;
     bool public shouldParticipantsShareUnreturnedStake;
     bool public shouldUseSupervisorInactionGuard;
     string public metadataURI;
 
     // Internal State
     address[] public participantList;
-    mapping(address => ParticipantData) public participants;
     uint256 public returnWindowEndTimestamp;
     uint256 public participantCount;
     uint256 public completingParticipantCount;
@@ -50,31 +51,44 @@ contract PepperStake is IPepperStake {
     bool public isReturnStakeCalled;
     bool public isPostReturnWindowDistributionCalled;
 
-    constructor(
-        address[] memory _supervisors,
-        uint256 _stakeAmount,
-        address[] memory _unreturnedStakeBeneficiaries,
-        uint256 _returnWindowDays,
-        uint256 _maxParticipants,
-        bool _shouldParticipantsShareUnreturnedStake,
-        bool _shouldUseSupervisorInactionGuard,
-        string memory _metadataURI,
-        address[] memory _oracleDelegateAddresses
-    ) {
-        for (uint256 i = 0; i < _supervisors.length; i++) {
-            supervisors[_supervisors[i]] = true;
+    constructor(LaunchPepperStakeData memory _launchData) {
+        // Set up supervisors
+        for (uint256 i = 0; i < _launchData.supervisors.length; i++) {
+            supervisors[_launchData.supervisors[i]] = true;
         }
-        stakeAmount = _stakeAmount;
-        unreturnedStakeBeneficiaries = _unreturnedStakeBeneficiaries;
-        returnWindowDays = _returnWindowDays;
-        maxParticipants = _maxParticipants;
-        shouldParticipantsShareUnreturnedStake = _shouldParticipantsShareUnreturnedStake;
-        shouldUseSupervisorInactionGuard = _shouldUseSupervisorInactionGuard;
-        metadataURI = _metadataURI;
-        for (uint256 i = 0; i < _oracleDelegateAddresses.length; i++) {
-            oracleDelegates[_oracleDelegateAddresses[i]] = true;
-            supervisors[_oracleDelegateAddresses[i]] = true;
+
+        // Set up oracle delegates
+        for (
+            uint256 i = 0;
+            i < _launchData.oracleDelegateAddresses.length;
+            i++
+        ) {
+            oracleDelegates[_launchData.oracleDelegateAddresses[i]] = true;
+            supervisors[_launchData.oracleDelegateAddresses[i]] = true;
         }
+
+        if (_launchData.shouldUseParticipantAllowList) {
+            for (
+                uint256 i = 0;
+                i < _launchData.participantAllowList.length;
+                i++
+            ) {
+                participants[_launchData.participantAllowList[i]]
+                    .isAllowedToParticipate = true;
+            }
+        }
+        stakeAmount = _launchData.stakeAmount;
+        unreturnedStakeBeneficiaries = _launchData.unreturnedStakeBeneficiaries;
+        returnWindowDays = _launchData.returnWindowDays;
+        maxParticipants = _launchData.maxParticipants;
+        shouldParticipantsShareUnreturnedStake = _launchData
+            .shouldParticipantsShareUnreturnedStake;
+        shouldUseSupervisorInactionGuard = _launchData
+            .shouldUseSupervisorInactionGuard;
+        shouldUseParticipantAllowList = _launchData
+            .shouldUseParticipantAllowList;
+        metadataURI = _launchData.metadataURI;
+
         supervisors[address(this)] = true;
 
         returnWindowEndTimestamp =
@@ -116,6 +130,12 @@ contract PepperStake is IPepperStake {
     }
 
     function stake() external payable {
+        if (
+            shouldUseParticipantAllowList &&
+            !participants[msg.sender].isAllowedToParticipate
+        ) {
+            revert PARTICIPANT_NOT_ALLOWED();
+        }
         if (participantCount >= maxParticipants)
             revert MAX_PARTICIPANTS_REACHED();
         if (msg.value != stakeAmount) revert INCORRECT_STAKE_AMOUNT();
@@ -126,6 +146,7 @@ contract PepperStake is IPepperStake {
 
         participantList.push(msg.sender);
         ParticipantData memory participantData = ParticipantData({
+            isAllowedToParticipate: true,
             participated: true,
             completed: false
         });

@@ -3,6 +3,7 @@ pragma solidity ^0.8.13;
 
 import "forge-std/Test.sol";
 import "../src/PepperStake.sol";
+import "../src/structs/LaunchPepperStakeData.sol";
 
 contract PepperStakeTest is Test {
     address internal _participant = address(bytes20(keccak256("participant")));
@@ -35,17 +36,21 @@ contract PepperStakeTest is Test {
             bytes20(keccak256("PepperstakeDAO"))
         );
 
-        PepperStake pepperStake = new PepperStake(
+        LaunchPepperStakeData memory defaultLaunchData = LaunchPepperStakeData(
             supervisors,
-            0.05 ether,
+            new address[](0),
             unreturnedStakeBeneficiaries,
+            new address[](0),
+            0.05 ether,
             14,
             100,
             false,
+            false,
             true,
-            "",
-            new address[](0)
+            ""
         );
+
+        PepperStake pepperStake = new PepperStake(defaultLaunchData);
         return pepperStake;
     }
 
@@ -76,17 +81,20 @@ contract PepperStakeTest is Test {
     }
 
     function testStakeMaxParticipantsReached() public {
-        PepperStake pepperStake2 = new PepperStake(
+        LaunchPepperStakeData memory launchData = LaunchPepperStakeData(
+            new address[](0),
+            new address[](0),
+            new address[](0),
             new address[](0),
             0.05 ether,
-            new address[](0),
             14,
             0,
             false,
+            false,
             true,
-            "",
-            new address[](0)
+            ""
         );
+        PepperStake pepperStake2 = new PepperStake(launchData);
         vm.startPrank(_participant);
         vm.expectRevert(
             abi.encodeWithSelector(
@@ -94,6 +102,28 @@ contract PepperStakeTest is Test {
             )
         );
         pepperStake2.stake{value: 0.05 ether}();
+    }
+
+    function testParticipantNotAllowed() public {
+        LaunchPepperStakeData memory launchData = LaunchPepperStakeData(
+            new address[](0),
+            new address[](0),
+            new address[](0),
+            new address[](0),
+            0.05 ether,
+            14,
+            0,
+            true,
+            false,
+            true,
+            ""
+        );
+        PepperStake pepperStake3 = new PepperStake(launchData);
+        vm.startPrank(_participant);
+        vm.expectRevert(
+            abi.encodeWithSelector(PepperStake.PARTICIPANT_NOT_ALLOWED.selector)
+        );
+        pepperStake3.stake{value: 0.05 ether}();
     }
 
     function testStakeReturnWindowOver() public {
@@ -194,6 +224,7 @@ contract PepperStakeTest is Test {
         pepperStake.stake{value: 0.05 ether}();
         vm.prank(_sponsor);
         pepperStake.sponsor{value: 0.05 ether}();
+        console.log(address(pepperStake).balance);
         assertEq(
             address(pepperStake).balance,
             0.15 ether,
@@ -203,6 +234,7 @@ contract PepperStakeTest is Test {
         completingParticipantList[0] = _participant;
         vm.prank(_supervisor);
         pepperStake.returnStake(completingParticipantList);
+        console.log(address(pepperStake).balance);
         assertEq(
             address(pepperStake).balance,
             0.1 ether,
@@ -211,6 +243,7 @@ contract PepperStakeTest is Test {
         vm.warp(15 days);
         vm.startPrank(_supervisor);
         pepperStake.postReturnWindowDistribution();
+        console.log(address(pepperStake).balance);
         assertEq(
             address(pepperStake).balance,
             0 ether,

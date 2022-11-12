@@ -5,6 +5,7 @@ import "forge-std/Test.sol";
 import "../src/PepperStakeDeployer.sol";
 import "../src/interfaces/IPepperStake.sol";
 import "../src/interfaces/IPepperStakeOracleDelegate.sol";
+import "../src/structs/LaunchPepperStakeData.sol";
 import "./mock/DummyOracleDelegate.sol";
 
 contract PepperStakeDeployerTest is Test {
@@ -16,18 +17,20 @@ contract PepperStakeDeployerTest is Test {
         dummyOracleDelegate = new DummyOracleDelegate();
         address[] memory oracleDelegates = new address[](1);
         oracleDelegates[0] = address(dummyOracleDelegate);
-        pepperStake = new PepperStake(
+        LaunchPepperStakeData memory launchData = LaunchPepperStakeData(
             new address[](0),
+            new address[](0),
+            new address[](0),
+            oracleDelegates,
             0.05 ether,
-            new address[](0),
             14,
             100,
             false,
+            false,
             true,
-            "",
-            oracleDelegates
+            ""
         );
-
+        pepperStake = new PepperStake(launchData);
         vm.label(_participant, "participant");
         vm.deal(_participant, 100 ether);
     }
