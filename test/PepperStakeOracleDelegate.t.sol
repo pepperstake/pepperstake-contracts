@@ -17,12 +17,16 @@ contract PepperStakeDeployerTest is Test {
         dummyOracleDelegate = new DummyOracleDelegate();
         address[] memory oracleDelegates = new address[](1);
         oracleDelegates[0] = address(dummyOracleDelegate);
+
+        uint256[] memory stakingTiers = new uint256[](1);
+        stakingTiers[0] = 0.05 ether;
+
         LaunchPepperStakeData memory launchData = LaunchPepperStakeData(
             new address[](0),
             new address[](0),
             new address[](0),
             oracleDelegates,
-            0.05 ether,
+            stakingTiers,
             14 days,
             100,
             false,

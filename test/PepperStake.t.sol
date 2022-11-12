@@ -36,12 +36,16 @@ contract PepperStakeTest is Test {
             bytes20(keccak256("PepperstakeDAO"))
         );
 
+        uint256[] memory stakingTiers = new uint256[](2);
+        stakingTiers[0] = 0.05 ether;
+        stakingTiers[1] = 0.5 ether;
+
         LaunchPepperStakeData memory defaultLaunchData = LaunchPepperStakeData(
             supervisors,
             new address[](0),
             unreturnedStakeBeneficiaries,
             new address[](0),
-            0.05 ether,
+            stakingTiers,
             14 days,
             100,
             false,
@@ -59,6 +63,9 @@ contract PepperStakeTest is Test {
         vm.prank(_participant);
         pepperStake.stake{value: 0.05 ether}();
         assert(pepperStake.PARTICIPANT_COUNT() == 1);
+        vm.prank(_participant2);
+        pepperStake.stake{value: 0.5 ether}();
+        assert(pepperStake.PARTICIPANT_COUNT() == 2);
     }
 
     function testStakeIncorrectAmount() public {
@@ -81,12 +88,14 @@ contract PepperStakeTest is Test {
     }
 
     function testStakeMaxParticipantsReached() public {
+        uint256[] memory stakingTiers = new uint256[](1);
+        stakingTiers[0] = 0.05 ether;
         LaunchPepperStakeData memory launchData = LaunchPepperStakeData(
             new address[](0),
             new address[](0),
             new address[](0),
             new address[](0),
-            0.05 ether,
+            stakingTiers,
             14 days,
             0,
             false,
@@ -107,12 +116,16 @@ contract PepperStakeTest is Test {
     function testParticipantAllowList() public {
         address[] memory participantAllowList = new address[](1);
         participantAllowList[0] = _participant;
+
+        uint256[] memory stakingTiers = new uint256[](1);
+        stakingTiers[0] = 0.05 ether;
+
         LaunchPepperStakeData memory launchData = LaunchPepperStakeData(
             new address[](0),
             participantAllowList,
             new address[](0),
             new address[](0),
-            0.05 ether,
+            stakingTiers,
             14 days,
             participantAllowList.length,
             true,
@@ -279,12 +292,14 @@ contract PepperStakeTest is Test {
     }
 
     function testCreatorParticipation() public {
+        uint256[] memory stakingTiers = new uint256[](1);
+        stakingTiers[0] = 0.05 ether;
         LaunchPepperStakeData memory defaultLaunchData = LaunchPepperStakeData(
             new address[](0),
             new address[](0),
             new address[](0),
             new address[](0),
-            0.05 ether,
+            stakingTiers,
             14 days,
             100,
             false,
@@ -300,12 +315,15 @@ contract PepperStakeTest is Test {
     }
 
     function testCreatorParticipationWithIncorrectAmount() public {
+        uint256[] memory stakingTiers = new uint256[](1);
+        stakingTiers[0] = 0.1 ether;
+
         LaunchPepperStakeData memory defaultLaunchData = LaunchPepperStakeData(
             new address[](0),
             new address[](0),
             new address[](0),
             new address[](0),
-            0.1 ether,
+            stakingTiers,
             14 days,
             100,
             false,

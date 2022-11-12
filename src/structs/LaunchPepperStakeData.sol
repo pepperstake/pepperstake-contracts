@@ -6,7 +6,7 @@ struct LaunchPepperStakeData {
     address[] participantAllowList;
     address[] unreturnedStakeBeneficiaries;
     address[] oracleDelegateAddresses;
-    uint256 stakeAmount;
+    uint256[] stakingTiers;
     uint256 completionWindowSeconds;
     uint256 maxParticipants;
     bool shouldUseParticipantAllowList;
