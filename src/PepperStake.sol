@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.13;
 
-import "forge-std/console.sol";
-
 import "./interfaces/IPepperStake.sol";
 import "./interfaces/IPepperStakeOracleDelegate.sol";
 
@@ -18,11 +16,11 @@ contract PepperStake is IPepperStake {
     error PARTICIPANT_NOT_ALLOWED();
     error INCORRECT_STAKE_AMOUNT();
     error ALREADY_PARTICIPATING();
-    error RETURN_WINDOW_OVER();
-    error RETURN_WINDOW_NOT_OVER();
+    error COMPLETION_WINDOW_OVER();
+    error COMPLETION_WINDOW_NOT_OVER();
     error CALLER_IS_NOT_SUPERVISOR();
     error INVALID_PARTICIPANT();
-    error POST_RETURN_WINDOW_DISTRIBUTION_ALREADY_CALLED();
+    error POST_COMPLETION_WINDOW_DISTRIBUTION_ALREADY_CALLED();
     error INVALID_ORACLE_DELEGATE();
 
     //*********************************************************************//
@@ -37,7 +35,7 @@ contract PepperStake is IPepperStake {
 
     uint256 public stakeAmount;
     address[] public unreturnedStakeBeneficiaries;
-    uint256 public returnWindowDays;
+    uint256 public completionWindowSeconds;
     uint256 public maxParticipants;
     bool public shouldUseParticipantAllowList;
     bool public shouldParticipantsShareUnreturnedStake;
@@ -46,7 +44,7 @@ contract PepperStake is IPepperStake {
 
     // Internal State
     address[] public participantList;
-    uint256 public returnWindowEndTimestamp;
+    uint256 public completionWindowEndTimestamp;
     uint256 public participantCount;
     uint256 public completingParticipantCount;
     uint256 public totalSponsorContribution;
@@ -85,7 +83,7 @@ contract PepperStake is IPepperStake {
         }
         stakeAmount = _launchData.stakeAmount;
         unreturnedStakeBeneficiaries = _launchData.unreturnedStakeBeneficiaries;
-        returnWindowDays = _launchData.returnWindowDays;
+        completionWindowSeconds = _launchData.completionWindowSeconds;
         maxParticipants = _launchData.maxParticipants;
         shouldParticipantsShareUnreturnedStake = _launchData
             .shouldParticipantsShareUnreturnedStake;
@@ -97,9 +95,7 @@ contract PepperStake is IPepperStake {
 
         supervisors[address(this)] = true;
 
-        returnWindowEndTimestamp =
-            block.timestamp +
-            (returnWindowDays * 1 days);
+        completionWindowEndTimestamp = block.timestamp + completionWindowSeconds;
         participantCount = 0;
         completingParticipantCount = 0;
         totalSponsorContribution = 0;
@@ -128,7 +124,7 @@ contract PepperStake is IPepperStake {
     }
 
     function END_TIMESTAMP() public view returns (uint256) {
-        return returnWindowEndTimestamp;
+        return completionWindowEndTimestamp;
     }
 
     function TOTAL_SPONSOR_CONTRIBUTION() public view returns (uint256) {
@@ -155,8 +151,8 @@ contract PepperStake is IPepperStake {
         if (msg.value != stakeAmount) revert INCORRECT_STAKE_AMOUNT();
         if (participants[msg.sender].participated)
             revert ALREADY_PARTICIPATING();
-        if (block.timestamp > returnWindowEndTimestamp)
-            revert RETURN_WINDOW_OVER();
+        if (block.timestamp > completionWindowEndTimestamp)
+            revert COMPLETION_WINDOW_OVER();
 
         participantList.push(msg.sender);
         ParticipantData memory participantData = ParticipantData({
@@ -175,8 +171,8 @@ contract PepperStake is IPepperStake {
     }
 
     function sponsor() external payable {
-        if (block.timestamp > returnWindowEndTimestamp)
-            revert RETURN_WINDOW_OVER();
+        if (block.timestamp > completionWindowEndTimestamp)
+            revert COMPLETION_WINDOW_OVER();
         totalSponsorContribution += msg.value;
 
         emit Sponsor(msg.sender, msg.value);
@@ -184,8 +180,8 @@ contract PepperStake is IPepperStake {
 
     function returnStake(address[] memory completingParticipants) external {
         if (!supervisors[msg.sender]) revert CALLER_IS_NOT_SUPERVISOR();
-        if (block.timestamp > returnWindowEndTimestamp)
-            revert RETURN_WINDOW_OVER();
+        if (block.timestamp > completionWindowEndTimestamp)
+            revert COMPLETION_WINDOW_OVER();
         for (uint256 i = 0; i < completingParticipants.length; i++) {
             if (!participants[completingParticipants[i]].participated)
                 revert INVALID_PARTICIPANT();
@@ -277,11 +273,11 @@ contract PepperStake is IPepperStake {
         }
     }
 
-    function postReturnWindowDistribution() external {
-        if (block.timestamp <= returnWindowEndTimestamp)
-            revert RETURN_WINDOW_NOT_OVER();
+    function postCompletionWindowDistribution() external {
+        if (block.timestamp <= completionWindowEndTimestamp)
+            revert COMPLETION_WINDOW_NOT_OVER();
         if (isPostReturnWindowDistributionCalled)
-            revert POST_RETURN_WINDOW_DISTRIBUTION_ALREADY_CALLED();
+            revert POST_COMPLETION_WINDOW_DISTRIBUTION_ALREADY_CALLED();
         _distributeSponsorContribution();
         _distributeUnreturnedStake();
         isPostReturnWindowDistributionCalled = true;
