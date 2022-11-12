@@ -23,7 +23,7 @@ contract PepperStakeDeployerTest is Test {
             new address[](0),
             oracleDelegates,
             0.05 ether,
-            14,
+            14 days,
             100,
             false,
             false,
