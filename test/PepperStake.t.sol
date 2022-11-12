@@ -42,7 +42,7 @@ contract PepperStakeTest is Test {
             unreturnedStakeBeneficiaries,
             new address[](0),
             0.05 ether,
-            14,
+            14 days,
             100,
             false,
             false,
@@ -87,7 +87,7 @@ contract PepperStakeTest is Test {
             new address[](0),
             new address[](0),
             0.05 ether,
-            14,
+            14 days,
             0,
             false,
             false,
@@ -113,7 +113,7 @@ contract PepperStakeTest is Test {
             new address[](0),
             new address[](0),
             0.05 ether,
-            14,
+            14 days,
             participantAllowList.length,
             true,
             false,
@@ -135,7 +135,7 @@ contract PepperStakeTest is Test {
         vm.warp(15 days);
         vm.startPrank(_participant);
         vm.expectRevert(
-            abi.encodeWithSelector(PepperStake.RETURN_WINDOW_OVER.selector)
+            abi.encodeWithSelector(PepperStake.COMPLETION_WINDOW_OVER.selector)
         );
         pepperStake.stake{value: 0.05 ether}();
     }
@@ -154,7 +154,7 @@ contract PepperStakeTest is Test {
         vm.warp(15 days);
         vm.startPrank(_sponsor);
         vm.expectRevert(
-            abi.encodeWithSelector(PepperStake.RETURN_WINDOW_OVER.selector)
+            abi.encodeWithSelector(PepperStake.COMPLETION_WINDOW_OVER.selector)
         );
         pepperStake.sponsor{value: 0.05 ether}();
     }
@@ -192,7 +192,7 @@ contract PepperStakeTest is Test {
         completingParticipantList[0] = _participant;
         vm.startPrank(_supervisor);
         vm.expectRevert(
-            abi.encodeWithSelector(PepperStake.RETURN_WINDOW_OVER.selector)
+            abi.encodeWithSelector(PepperStake.COMPLETION_WINDOW_OVER.selector)
         );
         pepperStake.returnStake(completingParticipantList);
     }
@@ -220,7 +220,7 @@ contract PepperStakeTest is Test {
         assert(pepperStake.COMPLETING_PARTICIPANT_COUNT() == 0);
     }
 
-    function testPostReturnWindowDistribution() public {
+    function testPostCompletionWindowDistribution() public {
         PepperStake pepperStake = initializePepperstakeContractWithDefaults();
         vm.prank(_participant);
         pepperStake.stake{value: 0.05 ether}();
@@ -228,7 +228,6 @@ contract PepperStakeTest is Test {
         pepperStake.stake{value: 0.05 ether}();
         vm.prank(_sponsor);
         pepperStake.sponsor{value: 0.05 ether}();
-        console.log(address(pepperStake).balance);
         assertEq(
             address(pepperStake).balance,
             0.15 ether,
@@ -238,7 +237,6 @@ contract PepperStakeTest is Test {
         completingParticipantList[0] = _participant;
         vm.prank(_supervisor);
         pepperStake.returnStake(completingParticipantList);
-        console.log(address(pepperStake).balance);
         assertEq(
             address(pepperStake).balance,
             0.1 ether,
@@ -246,8 +244,7 @@ contract PepperStakeTest is Test {
         );
         vm.warp(15 days);
         vm.startPrank(_supervisor);
-        pepperStake.postReturnWindowDistribution();
-        console.log(address(pepperStake).balance);
+        pepperStake.postCompletionWindowDistribution();
         assertEq(
             address(pepperStake).balance,
             0 ether,
@@ -255,28 +252,30 @@ contract PepperStakeTest is Test {
         );
     }
 
-    function testPostReturnWindowDistributionReturnWindowNotOver() public {
+    function testPostCompletionWindowDistributionReturnWindowNotOver() public {
         PepperStake pepperStake = initializePepperstakeContractWithDefaults();
         vm.startPrank(_supervisor);
         vm.expectRevert(
-            abi.encodeWithSelector(PepperStake.RETURN_WINDOW_NOT_OVER.selector)
+            abi.encodeWithSelector(
+                PepperStake.COMPLETION_WINDOW_NOT_OVER.selector
+            )
         );
-        pepperStake.postReturnWindowDistribution();
+        pepperStake.postCompletionWindowDistribution();
     }
 
-    function testPostReturnWindowDistributionAlreadyCalled() public {
+    function testPostCompletionWindowDistributionAlreadyCalled() public {
         PepperStake pepperStake = initializePepperstakeContractWithDefaults();
         vm.warp(15 days);
         vm.startPrank(_participant);
-        pepperStake.postReturnWindowDistribution();
+        pepperStake.postCompletionWindowDistribution();
         vm.expectRevert(
             abi.encodeWithSelector(
                 PepperStake
-                    .POST_RETURN_WINDOW_DISTRIBUTION_ALREADY_CALLED
+                    .POST_COMPLETION_WINDOW_DISTRIBUTION_ALREADY_CALLED
                     .selector
             )
         );
-        pepperStake.postReturnWindowDistribution();
+        pepperStake.postCompletionWindowDistribution();
     }
 
     function testCreatorParticipation() public {
@@ -286,7 +285,7 @@ contract PepperStakeTest is Test {
             new address[](0),
             new address[](0),
             0.05 ether,
-            14,
+            14 days,
             100,
             false,
             false,
@@ -307,7 +306,7 @@ contract PepperStakeTest is Test {
             new address[](0),
             new address[](0),
             0.1 ether,
-            14,
+            14 days,
             100,
             false,
             false,
