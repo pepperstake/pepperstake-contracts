@@ -4,8 +4,10 @@ pragma solidity ^0.8.13;
 import "./interfaces/IPepperStake.sol";
 import "./interfaces/IPepperStakeOracleDelegate.sol";
 
-import "./structs/ParticipantData.sol";
+import "./structs/Participant.sol";
 import "./structs/LaunchPepperStakeData.sol";
+
+import "forge-std/console.sol";
 
 contract PepperStake is IPepperStake {
     //*********************************************************************//
@@ -29,11 +31,11 @@ contract PepperStake is IPepperStake {
 
     uint256 projectId;
 
-    mapping(address => ParticipantData) public participants;
+    mapping(address => Participant) public participants;
     mapping(address => bool) public supervisors;
     mapping(address => bool) public oracleDelegates;
 
-    uint256 public stakeAmount;
+    uint256[] public stakingTiers;
     address[] public unreturnedStakeBeneficiaries;
     uint256 public completionWindowSeconds;
     uint256 public maxParticipants;
@@ -81,7 +83,11 @@ contract PepperStake is IPepperStake {
                     .isAllowedToParticipate = true;
             }
         }
-        stakeAmount = _launchData.stakeAmount;
+
+        for (uint256 i = 0; i < _launchData.stakingTiers.length; i++) {
+            stakingTiers.push(_launchData.stakingTiers[i]);
+        }
+
         unreturnedStakeBeneficiaries = _launchData.unreturnedStakeBeneficiaries;
         completionWindowSeconds = _launchData.completionWindowSeconds;
         maxParticipants = _launchData.maxParticipants;
@@ -95,7 +101,9 @@ contract PepperStake is IPepperStake {
 
         supervisors[address(this)] = true;
 
-        completionWindowEndTimestamp = block.timestamp + completionWindowSeconds;
+        completionWindowEndTimestamp =
+            block.timestamp +
+            completionWindowSeconds;
         participantCount = 0;
         completingParticipantCount = 0;
         totalSponsorContribution = 0;
@@ -148,22 +156,27 @@ contract PepperStake is IPepperStake {
         }
         if (participantCount >= maxParticipants)
             revert MAX_PARTICIPANTS_REACHED();
-        if (msg.value != stakeAmount) revert INCORRECT_STAKE_AMOUNT();
         if (participants[msg.sender].participated)
             revert ALREADY_PARTICIPATING();
         if (block.timestamp > completionWindowEndTimestamp)
             revert COMPLETION_WINDOW_OVER();
-
-        participantList.push(msg.sender);
-        ParticipantData memory participantData = ParticipantData({
-            isAllowedToParticipate: true,
-            participated: true,
-            completed: false
-        });
-        participants[msg.sender] = participantData;
-        participantCount++;
-
-        emit Stake(msg.sender, msg.value);
+        for (uint256 i = 0; i < stakingTiers.length; i++) {
+            if (msg.value == stakingTiers[i]) {
+                Participant memory participantData = Participant({
+                    isAllowedToParticipate: true,
+                    participated: true,
+                    completed: false,
+                    stakeAmount: msg.value,
+                    stakeTier: i
+                });
+                participants[msg.sender] = participantData;
+                participantList.push(msg.sender);
+                participantCount++;
+                emit Stake(msg.sender, msg.value);
+                return;
+            }
+        }
+        revert INCORRECT_STAKE_AMOUNT();
     }
 
     function stake() external payable {
@@ -188,14 +201,16 @@ contract PepperStake is IPepperStake {
         }
 
         for (uint256 i = 0; i < completingParticipants.length; i++) {
-            address payable participant = payable(completingParticipants[i]);
-            participant.transfer(stakeAmount);
-            participants[participant].completed = true;
+            address completingParticipant = completingParticipants[i];
+            uint256 stakeAmount = participants[completingParticipant]
+                .stakeAmount;
+            payable(completingParticipant).transfer(stakeAmount);
+            participants[completingParticipant].completed = true;
             completingParticipantCount++;
         }
         isReturnStakeCalled = true;
 
-        emit ReturnStake(msg.sender, completingParticipants, stakeAmount);
+        // emit ReturnStake(msg.sender, completingParticipants, participant.stakeAmount);
     }
 
     function checkOracle(

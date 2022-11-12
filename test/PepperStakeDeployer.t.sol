@@ -14,12 +14,14 @@ contract PepperStakeDeployerTest is Test {
     }
 
     function testDeployPepperStake() public {
+        uint256[] memory stakingTiers = new uint256[](1);
+        stakingTiers[0] = 0.05 ether;
         LaunchPepperStakeData memory launchData = LaunchPepperStakeData(
             new address[](0),
             new address[](0),
             new address[](0),
             new address[](0),
-            0.05 ether,
+            stakingTiers,
             14,
             100,
             false,
