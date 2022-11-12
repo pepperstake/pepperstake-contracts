@@ -104,10 +104,10 @@ contract PepperStakeTest is Test {
         pepperStake2.stake{value: 0.05 ether}();
     }
 
-    function testParticipantNotAllowed() public {
+    function testParticipantAllowList() public {
         LaunchPepperStakeData memory launchData = LaunchPepperStakeData(
             new address[](0),
-            new address[](0),
+            new address[_participant](1),
             new address[](0),
             new address[](0),
             0.05 ether,
@@ -120,6 +120,8 @@ contract PepperStakeTest is Test {
         );
         PepperStake pepperStake3 = new PepperStake(launchData);
         vm.startPrank(_participant);
+        pepperStake3.stake{value: 0.05 ether}();
+        vm.startPrank(_participant2);
         vm.expectRevert(
             abi.encodeWithSelector(PepperStake.PARTICIPANT_NOT_ALLOWED.selector)
         );
