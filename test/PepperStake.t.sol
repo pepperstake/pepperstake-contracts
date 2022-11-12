@@ -278,4 +278,25 @@ contract PepperStakeTest is Test {
         );
         pepperStake.postReturnWindowDistribution();
     }
+
+    function testCreatorParticipation() public {
+        LaunchPepperStakeData memory defaultLaunchData = LaunchPepperStakeData(
+            new address[](0),
+            new address[](0),
+            new address[](0),
+            new address[](0),
+            0.05 ether,
+            14,
+            100,
+            false,
+            false,
+            true,
+            ""
+        );
+        vm.prank(_participant);
+        PepperStake pepperStakeParticipateOnCreate = new PepperStake{
+            value: 0.05 ether
+        }(1, defaultLaunchData);
+        assert(pepperStakeParticipateOnCreate.PARTICIPANT_COUNT() == 1);
+    }
 }

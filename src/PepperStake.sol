@@ -53,7 +53,9 @@ contract PepperStake is IPepperStake {
     bool public isReturnStakeCalled;
     bool public isPostReturnWindowDistributionCalled;
 
-    constructor(uint256 _projectId, LaunchPepperStakeData memory _launchData) {
+    constructor(uint256 _projectId, LaunchPepperStakeData memory _launchData)
+        payable
+    {
         projectId = _projectId;
 
         // Set up supervisors
@@ -103,6 +105,10 @@ contract PepperStake is IPepperStake {
         totalSponsorContribution = 0;
         isReturnStakeCalled = false;
         isPostReturnWindowDistributionCalled = false;
+
+        if (msg.value > 0) {
+            _stake();
+        }
     }
 
     function PROJECT_ID() external view returns (uint256) {
@@ -137,7 +143,7 @@ contract PepperStake is IPepperStake {
         return completingParticipantCount;
     }
 
-    function stake() external payable {
+    function _stake() private {
         if (
             shouldUseParticipantAllowList &&
             !participants[msg.sender].isAllowedToParticipate
@@ -162,6 +168,10 @@ contract PepperStake is IPepperStake {
         participantCount++;
 
         emit Stake(msg.sender, msg.value);
+    }
+
+    function stake() external payable {
+        _stake();
     }
 
     function sponsor() external payable {
