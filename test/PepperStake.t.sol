@@ -299,4 +299,27 @@ contract PepperStakeTest is Test {
         }(1, defaultLaunchData);
         assert(pepperStakeParticipateOnCreate.PARTICIPANT_COUNT() == 1);
     }
+
+    function testCreatorParticipationWithIncorrectAmount() public {
+        LaunchPepperStakeData memory defaultLaunchData = LaunchPepperStakeData(
+            new address[](0),
+            new address[](0),
+            new address[](0),
+            new address[](0),
+            0.1 ether,
+            14,
+            100,
+            false,
+            false,
+            true,
+            ""
+        );
+        vm.prank(_participant);
+        vm.expectRevert(
+            abi.encodeWithSelector(PepperStake.INCORRECT_STAKE_AMOUNT.selector)
+        );
+        PepperStake pepperStakeParticipateOnCreate = new PepperStake{
+            value: 0.05 ether
+        }(1, defaultLaunchData);
+    }
 }
