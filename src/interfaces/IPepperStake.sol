@@ -29,4 +29,6 @@ interface IPepperStake {
     function returnStake(address[] memory completingParticipants) external;
 
     function postReturnWindowDistribution() external;
+
+    function PROJECT_ID() external view returns (uint256);
 }

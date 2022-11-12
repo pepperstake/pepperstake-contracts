@@ -8,9 +8,12 @@ contract PepperStakeDeployer is IPepperStakeDeployer {
     uint256 public protocolFee;
     address public protocolFeeBeneficiary;
 
+    uint256 public projectCount;
+
     constructor(uint256 _protocolFee, address _protocolFeeBeneficiary) {
         protocolFee = _protocolFee;
         protocolFeeBeneficiary = _protocolFeeBeneficiary;
+        projectCount = 1;
     }
 
     //*********************************************************************//
@@ -25,7 +28,8 @@ contract PepperStakeDeployer is IPepperStakeDeployer {
         external
         returns (IPepperStake pepperStake)
     {
-        pepperStake = new PepperStake(_launchData);
+        pepperStake = new PepperStake(projectCount, _launchData);
+        projectCount++;
         // emit DeployPepperStake(
         //     pepperStake,
         //     _supervisors,
