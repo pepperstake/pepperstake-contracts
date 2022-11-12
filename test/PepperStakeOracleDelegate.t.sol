@@ -30,7 +30,7 @@ contract PepperStakeDeployerTest is Test {
             true,
             ""
         );
-        pepperStake = new PepperStake(launchData);
+        pepperStake = new PepperStake(1, launchData);
         vm.label(_participant, "participant");
         vm.deal(_participant, 100 ether);
     }

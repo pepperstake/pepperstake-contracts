@@ -50,7 +50,7 @@ contract PepperStakeTest is Test {
             ""
         );
 
-        PepperStake pepperStake = new PepperStake(defaultLaunchData);
+        PepperStake pepperStake = new PepperStake(1, defaultLaunchData);
         return pepperStake;
     }
 
@@ -94,7 +94,7 @@ contract PepperStakeTest is Test {
             true,
             ""
         );
-        PepperStake pepperStake2 = new PepperStake(launchData);
+        PepperStake pepperStake2 = new PepperStake(1, launchData);
         vm.startPrank(_participant);
         vm.expectRevert(
             abi.encodeWithSelector(
@@ -120,7 +120,7 @@ contract PepperStakeTest is Test {
             true,
             ""
         );
-        PepperStake pepperStake3 = new PepperStake(launchData);
+        PepperStake pepperStake3 = new PepperStake(1, launchData);
         vm.prank(_participant);
         pepperStake3.stake{value: 0.05 ether}();
         vm.prank(_participant2);

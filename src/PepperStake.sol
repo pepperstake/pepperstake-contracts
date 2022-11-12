@@ -29,6 +29,8 @@ contract PepperStake is IPepperStake {
     // --------------------- public stored properties -------------------- //
     //*********************************************************************//
 
+    uint256 projectId;
+
     mapping(address => ParticipantData) public participants;
     mapping(address => bool) public supervisors;
     mapping(address => bool) public oracleDelegates;
@@ -51,7 +53,9 @@ contract PepperStake is IPepperStake {
     bool public isReturnStakeCalled;
     bool public isPostReturnWindowDistributionCalled;
 
-    constructor(LaunchPepperStakeData memory _launchData) {
+    constructor(uint256 _projectId, LaunchPepperStakeData memory _launchData) {
+        projectId = _projectId;
+
         // Set up supervisors
         for (uint256 i = 0; i < _launchData.supervisors.length; i++) {
             supervisors[_launchData.supervisors[i]] = true;
@@ -99,6 +103,10 @@ contract PepperStake is IPepperStake {
         totalSponsorContribution = 0;
         isReturnStakeCalled = false;
         isPostReturnWindowDistributionCalled = false;
+    }
+
+    function PROJECT_ID() external view returns (uint256) {
+        return projectId;
     }
 
     function IS_SUPERVISOR(address _supervisor) external view returns (bool) {
