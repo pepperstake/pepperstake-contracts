@@ -34,8 +34,8 @@ contract PepperStake is IPepperStake {
     mapping(address => Participant) public participants;
     mapping(address => bool) public supervisors;
     mapping(address => bool) public oracleDelegates;
+    mapping(uint256 => bool) public stakingTiers;
 
-    uint256[] public stakingTiers;
     address[] public unreturnedStakeBeneficiaries;
     uint256 public completionWindowSeconds;
     uint256 public maxParticipants;
@@ -85,7 +85,7 @@ contract PepperStake is IPepperStake {
         }
 
         for (uint256 i = 0; i < _launchData.stakingTiers.length; i++) {
-            stakingTiers.push(_launchData.stakingTiers[i]);
+            stakingTiers[_launchData.stakingTiers[i]] = true;
         }
 
         unreturnedStakeBeneficiaries = _launchData.unreturnedStakeBeneficiaries;
@@ -160,23 +160,19 @@ contract PepperStake is IPepperStake {
             revert ALREADY_PARTICIPATING();
         if (block.timestamp > completionWindowEndTimestamp)
             revert COMPLETION_WINDOW_OVER();
-        for (uint256 i = 0; i < stakingTiers.length; i++) {
-            if (msg.value == stakingTiers[i]) {
-                Participant memory participantData = Participant({
-                    isAllowedToParticipate: true,
-                    participated: true,
-                    completed: false,
-                    stakeAmount: msg.value,
-                    stakeTier: i
-                });
-                participants[msg.sender] = participantData;
-                participantList.push(msg.sender);
-                participantCount++;
-                emit Stake(msg.sender, msg.value);
-                return;
-            }
-        }
-        revert INCORRECT_STAKE_AMOUNT();
+        if (!stakingTiers[msg.value]) revert INCORRECT_STAKE_AMOUNT();
+
+        Participant memory participantData = Participant({
+            isAllowedToParticipate: true,
+            participated: true,
+            completed: false,
+            stakeAmount: msg.value
+        });
+        participants[msg.sender] = participantData;
+        participantList.push(msg.sender);
+        participantCount++;
+
+        emit Stake(msg.sender, msg.value);
     }
 
     function stake() external payable {

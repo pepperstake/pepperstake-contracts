@@ -6,5 +6,4 @@ struct Participant {
     bool participated;
     bool completed;
     uint256 stakeAmount;
-    uint256 stakeTier;
 }
