@@ -318,8 +318,12 @@ contract PepperStakeTest is Test {
         vm.expectRevert(
             abi.encodeWithSelector(PepperStake.INCORRECT_STAKE_AMOUNT.selector)
         );
-        PepperStake pepperStakeParticipateOnCreate = new PepperStake{
-            value: 0.05 ether
-        }(1, defaultLaunchData);
+        new PepperStake{value: 0.5 ether}(1, defaultLaunchData);
+
+        vm.prank(_participant);
+        vm.expectRevert(
+            abi.encodeWithSelector(PepperStake.INCORRECT_STAKE_AMOUNT.selector)
+        );
+        new PepperStake{value: 0.15 ether}(1, defaultLaunchData);
     }
 }
