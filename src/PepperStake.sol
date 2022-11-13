@@ -24,6 +24,9 @@ contract PepperStake is IPepperStake {
     error INVALID_PARTICIPANT();
     error POST_COMPLETION_WINDOW_DISTRIBUTION_ALREADY_CALLED();
     error INVALID_ORACLE_DELEGATE();
+    error NOT_AUTHORIZED_TO_RETURN_STAKE_FOR_PARTICIPANT();
+    error PARTICIPANT_LIST_AND_SHOULD_RETURN_STAKE_LIST_LENGTHS_MISMATCH();
+    error PARTICIPANT_HAS_NOT_COMPLETED();
 
     //*********************************************************************//
     // --------------------- public stored properties -------------------- //
@@ -50,7 +53,7 @@ contract PepperStake is IPepperStake {
     uint256 public participantCount;
     uint256 public completingParticipantCount;
     uint256 public totalSponsorContribution;
-    bool public isReturnStakeCalled;
+    bool public hasSupervisorActed;
     bool public isPostReturnWindowDistributionCalled;
 
     constructor(uint256 _projectId, LaunchPepperStakeData memory _launchData)
@@ -107,7 +110,7 @@ contract PepperStake is IPepperStake {
         participantCount = 0;
         completingParticipantCount = 0;
         totalSponsorContribution = 0;
-        isReturnStakeCalled = false;
+        hasSupervisorActed = false;
         isPostReturnWindowDistributionCalled = false;
 
         if (msg.value > 0) {
@@ -166,6 +169,7 @@ contract PepperStake is IPepperStake {
             isAllowedToParticipate: true,
             participated: true,
             completed: false,
+            stakeReturned: false,
             stakeAmount: msg.value
         });
         participants[msg.sender] = participantData;
@@ -187,13 +191,33 @@ contract PepperStake is IPepperStake {
         emit Sponsor(msg.sender, msg.value);
     }
 
-    function returnStake(address[] memory completingParticipants) external {
+    function approveForParticipants(address[] memory _completingParticipants)
+        external
+    {
         if (!supervisors[msg.sender]) revert CALLER_IS_NOT_SUPERVISOR();
         if (block.timestamp > completionWindowEndTimestamp)
             revert COMPLETION_WINDOW_OVER();
-        for (uint256 i = 0; i < completingParticipants.length; i++) {
-            if (!participants[completingParticipants[i]].participated)
+        for (uint256 i = 0; i < _completingParticipants.length; i++) {
+            if (!participants[_completingParticipants[i]].participated)
                 revert INVALID_PARTICIPANT();
+        }
+
+        for (uint256 i = 0; i < _completingParticipants.length; i++) {
+            address completingParticipant = _completingParticipants[i];
+            participants[completingParticipant].completed = true;
+            completingParticipantCount++;
+        }
+        hasSupervisorActed = true;
+    }
+
+    function returnStake(address[] memory completingParticipants) external {
+        bool isReturningForSelf = completingParticipants.length == 1 &&
+            completingParticipants[0] == msg.sender;
+        if (!supervisors[msg.sender] && !isReturningForSelf)
+            revert NOT_AUTHORIZED_TO_RETURN_STAKE_FOR_PARTICIPANT();
+        for (uint256 i = 0; i < completingParticipants.length; i++) {
+            if (!participants[completingParticipants[i]].completed)
+                revert PARTICIPANT_HAS_NOT_COMPLETED();
         }
 
         for (uint256 i = 0; i < completingParticipants.length; i++) {
@@ -201,12 +225,8 @@ contract PepperStake is IPepperStake {
             uint256 stakeAmount = participants[completingParticipant]
                 .stakeAmount;
             payable(completingParticipant).transfer(stakeAmount);
-            participants[completingParticipant].completed = true;
-            completingParticipantCount++;
+            participants[completingParticipant].stakeReturned = true;
         }
-        isReturnStakeCalled = true;
-
-        // emit ReturnStake(msg.sender, completingParticipants, participant.stakeAmount);
     }
 
     function checkOracle(
@@ -229,13 +249,13 @@ contract PepperStake is IPepperStake {
                 winnerCount++;
             }
         }
-        this.returnStake(completingParticipants);
+        this.approveForParticipants(completingParticipants);
     }
 
     function _distributeUnreturnedStake() private {
         if (participantCount - completingParticipantCount > 0) {
             address[] memory beneficiaries;
-            if (shouldUseSupervisorInactionGuard && !isReturnStakeCalled) {
+            if (shouldUseSupervisorInactionGuard && !hasSupervisorActed) {
                 // Inaction Guard is true, no supervisor ever called returnStake()
                 beneficiaries = participantList;
             } else {
