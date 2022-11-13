@@ -27,12 +27,13 @@ contract PepperStake is IPepperStake {
     error NOT_AUTHORIZED_TO_RETURN_STAKE_FOR_PARTICIPANT();
     error PARTICIPANT_LIST_AND_SHOULD_RETURN_STAKE_LIST_LENGTHS_MISMATCH();
     error PARTICIPANT_HAS_NOT_COMPLETED();
+    error STAKE_ALREADY_RETURNED();
 
     //*********************************************************************//
     // --------------------- public stored properties -------------------- //
     //*********************************************************************//
 
-    uint256 projectId;
+    uint256 public projectId;
 
     mapping(address => Participant) public participants;
     mapping(address => bool) public supervisors;
@@ -52,7 +53,9 @@ contract PepperStake is IPepperStake {
     uint256 public completionWindowEndTimestamp;
     uint256 public participantCount;
     uint256 public completingParticipantCount;
+    uint256 public totalStakeAmount;
     uint256 public totalSponsorContribution;
+    uint256 public totalReturnedStakeAmount;
     bool public hasSupervisorActed;
     bool public isPostReturnWindowDistributionCalled;
 
@@ -109,6 +112,8 @@ contract PepperStake is IPepperStake {
             completionWindowSeconds;
         participantCount = 0;
         completingParticipantCount = 0;
+        totalStakeAmount = 0;
+        totalReturnedStakeAmount = 0;
         totalSponsorContribution = 0;
         hasSupervisorActed = false;
         isPostReturnWindowDistributionCalled = false;
@@ -150,6 +155,14 @@ contract PepperStake is IPepperStake {
         return completingParticipantCount;
     }
 
+    function getParticipant(address _participant)
+        external
+        view
+        returns (Participant memory)
+    {
+        return participants[_participant];
+    }
+
     function _stake() private {
         if (
             shouldUseParticipantAllowList &&
@@ -175,6 +188,7 @@ contract PepperStake is IPepperStake {
         participants[msg.sender] = participantData;
         participantList.push(msg.sender);
         participantCount++;
+        totalStakeAmount += msg.value;
 
         emit Stake(msg.sender, msg.value);
     }
@@ -210,22 +224,25 @@ contract PepperStake is IPepperStake {
         hasSupervisorActed = true;
     }
 
-    function returnStake(address[] memory completingParticipants) external {
-        bool isReturningForSelf = completingParticipants.length == 1 &&
-            completingParticipants[0] == msg.sender;
+    function returnStake(address[] memory _participants) external {
+        bool isReturningForSelf = _participants.length == 1 &&
+            _participants[0] == msg.sender;
         if (!supervisors[msg.sender] && !isReturningForSelf)
             revert NOT_AUTHORIZED_TO_RETURN_STAKE_FOR_PARTICIPANT();
-        for (uint256 i = 0; i < completingParticipants.length; i++) {
-            if (!participants[completingParticipants[i]].completed)
+        for (uint256 i = 0; i < _participants.length; i++) {
+            if (!participants[_participants[i]].completed)
                 revert PARTICIPANT_HAS_NOT_COMPLETED();
+            if (participants[_participants[i]].stakeReturned)
+                revert STAKE_ALREADY_RETURNED();
         }
 
-        for (uint256 i = 0; i < completingParticipants.length; i++) {
-            address completingParticipant = completingParticipants[i];
+        for (uint256 i = 0; i < _participants.length; i++) {
+            address completingParticipant = _participants[i];
             uint256 stakeAmount = participants[completingParticipant]
                 .stakeAmount;
             payable(completingParticipant).transfer(stakeAmount);
             participants[completingParticipant].stakeReturned = true;
+            totalReturnedStakeAmount += stakeAmount;
         }
     }
 
@@ -253,27 +270,17 @@ contract PepperStake is IPepperStake {
     }
 
     function _distributeUnreturnedStake() private {
-        if (participantCount - completingParticipantCount > 0) {
-            address[] memory beneficiaries;
-            if (shouldUseSupervisorInactionGuard && !hasSupervisorActed) {
-                // Inaction Guard is true, no supervisor ever called returnStake()
-                beneficiaries = participantList;
-            } else {
-                beneficiaries = unreturnedStakeBeneficiaries;
+        for (uint256 i = 0; i < participantList.length; i++) {
+            address participant = participantList[i];
+            if (
+                participants[participant].completed &&
+                !participants[participant].stakeReturned
+            ) {
+                uint256 stakeAmount = participants[participant].stakeAmount;
+                payable(participant).transfer(stakeAmount);
+                participants[participant].stakeReturned = true;
+                totalReturnedStakeAmount += stakeAmount;
             }
-            uint256 unreturnedStake = address(this).balance;
-            uint256 beneficiaryShare = unreturnedStake /
-                (participantCount - completingParticipantCount);
-            for (uint256 i = 0; i < beneficiaries.length; i++) {
-                payable(beneficiaries[i]).transfer(beneficiaryShare);
-            }
-
-            emit DistributeUnreturnedStake(
-                msg.sender,
-                beneficiaries,
-                unreturnedStake,
-                beneficiaryShare
-            );
         }
     }
 
@@ -304,13 +311,39 @@ contract PepperStake is IPepperStake {
         }
     }
 
+    function _distributeUnapprovedStake() private {
+        if (participantCount - completingParticipantCount > 0) {
+            address[] memory beneficiaries;
+            if (shouldUseSupervisorInactionGuard && !hasSupervisorActed) {
+                // Inaction Guard is true, no supervisor ever called returnStake()
+                beneficiaries = participantList;
+            } else {
+                beneficiaries = unreturnedStakeBeneficiaries;
+            }
+            uint256 unreturnedStake = address(this).balance;
+            uint256 beneficiaryShare = unreturnedStake /
+                (participantCount - completingParticipantCount);
+            for (uint256 i = 0; i < beneficiaries.length; i++) {
+                payable(beneficiaries[i]).transfer(beneficiaryShare);
+            }
+
+            emit DistributeUnreturnedStake(
+                msg.sender,
+                beneficiaries,
+                unreturnedStake,
+                beneficiaryShare
+            );
+        }
+    }
+
     function postCompletionWindowDistribution() external {
         if (block.timestamp <= completionWindowEndTimestamp)
             revert COMPLETION_WINDOW_NOT_OVER();
         if (isPostReturnWindowDistributionCalled)
             revert POST_COMPLETION_WINDOW_DISTRIBUTION_ALREADY_CALLED();
-        _distributeSponsorContribution();
         _distributeUnreturnedStake();
+        _distributeSponsorContribution();
+        _distributeUnapprovedStake();
         isPostReturnWindowDistributionCalled = true;
     }
 }
