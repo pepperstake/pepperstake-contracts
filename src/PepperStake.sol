@@ -123,38 +123,6 @@ contract PepperStake is IPepperStake {
         }
     }
 
-    function PROJECT_ID() external view returns (uint256) {
-        return projectId;
-    }
-
-    function IS_SUPERVISOR(address _supervisor) external view returns (bool) {
-        return supervisors[_supervisor];
-    }
-
-    function IS_ORACLE_DELEGATE(address _oracleDelegate)
-        external
-        view
-        returns (bool)
-    {
-        return oracleDelegates[_oracleDelegate];
-    }
-
-    function END_TIMESTAMP() public view returns (uint256) {
-        return completionWindowEndTimestamp;
-    }
-
-    function TOTAL_SPONSOR_CONTRIBUTION() public view returns (uint256) {
-        return totalSponsorContribution;
-    }
-
-    function PARTICIPANT_COUNT() external view returns (uint256) {
-        return participantCount;
-    }
-
-    function COMPLETING_PARTICIPANT_COUNT() external view returns (uint256) {
-        return completingParticipantCount;
-    }
-
     function getParticipant(address _participant)
         external
         view

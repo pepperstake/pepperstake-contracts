@@ -30,5 +30,5 @@ interface IPepperStake {
 
     function postCompletionWindowDistribution() external;
 
-    function PROJECT_ID() external view returns (uint256);
+    function projectId() external view returns (uint256);
 }
