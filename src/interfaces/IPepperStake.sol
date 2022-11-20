@@ -6,20 +6,35 @@ interface IPepperStake {
     event Sponsor(address indexed participant, uint256 amount);
     event ApproveForParticipants(
         address indexed supervisor,
-        address[] completingParticipants,
-        uint256 amount
+        address[] completingParticipants
+    );
+    event ReturnStake(
+        address indexed participant,
+        uint256 stakeAmount,
+        uint256 fee,
+        uint256 returnAmount
     );
     event DistributeUnreturnedStake(
         address indexed caller,
         address[] beneficiaries,
         uint256 totalUnreturnedStake,
-        uint256 sharePerBeneficiary
+        uint256 beneficiaryShare
+    );
+    event DistributeFees(
+        address indexed caller,
+        uint256 protocolFee,
+        address protocolFeeBeneficiary,
+        uint256 creatorFee,
+        address creatorFeeBeneficiary,
+        uint256 supervisorTip,
+        address[] supervisors,
+        uint256 supervisorShare
     );
     event DistributeSponsorContribution(
         address indexed caller,
         address[] beneficiaries,
         uint256 totalSponsorContribution,
-        uint256 sharePerBeneficiary
+        uint256 beneficiaryShare
     );
 
     function stake() external payable;
