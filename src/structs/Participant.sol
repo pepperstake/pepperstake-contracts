@@ -5,6 +5,5 @@ struct Participant {
     bool isAllowedToParticipate;
     bool participated;
     bool completed;
-    bool stakeReturned;
     uint256 stakeAmount;
 }

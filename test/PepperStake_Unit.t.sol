@@ -62,10 +62,10 @@ contract PepperStakeTest is Test {
         PepperStake pepperStake = initializePepperstakeContractWithDefaults();
         vm.prank(_participant);
         pepperStake.stake{value: 0.05 ether}();
-        assert(pepperStake.PARTICIPANT_COUNT() == 1);
+        assert(pepperStake.participantCount() == 1);
         vm.prank(_participant2);
         pepperStake.stake{value: 0.5 ether}();
-        assert(pepperStake.PARTICIPANT_COUNT() == 2);
+        assert(pepperStake.participantCount() == 2);
     }
 
     function testStakeIncorrectAmount() public {
@@ -157,9 +157,9 @@ contract PepperStakeTest is Test {
         PepperStake pepperStake = initializePepperstakeContractWithDefaults();
         vm.startPrank(_sponsor);
         pepperStake.sponsor{value: 0.05 ether}();
-        assert(pepperStake.TOTAL_SPONSOR_CONTRIBUTION() == 0.05 ether);
+        assert(pepperStake.totalSponsorContribution() == 0.05 ether);
         pepperStake.sponsor{value: 0.05 ether}();
-        assert(pepperStake.TOTAL_SPONSOR_CONTRIBUTION() == 0.1 ether);
+        assert(pepperStake.totalSponsorContribution() == 0.1 ether);
     }
 
     function testSponsorReturnWindowOver() public {
@@ -180,20 +180,7 @@ contract PepperStakeTest is Test {
         address[] memory completingParticipantList = new address[](1);
         completingParticipantList[0] = _participant;
         pepperStake.approveForParticipants(completingParticipantList);
-        assert(pepperStake.COMPLETING_PARTICIPANT_COUNT() == 1);
-    }
-
-    function testParticipantHasNotCompleted() public {
-        PepperStake pepperStake = initializePepperstakeContractWithDefaults();
-        vm.startPrank(_participant);
-        address[] memory completingParticipantList = new address[](1);
-        completingParticipantList[0] = _participant;
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                PepperStake.PARTICIPANT_HAS_NOT_COMPLETED.selector
-            )
-        );
-        pepperStake.returnStake(completingParticipantList);
+        assert(pepperStake.completingParticipantCount() == 1);
     }
 
     function testApproveWindowOver() public {
@@ -230,39 +217,7 @@ contract PepperStakeTest is Test {
         address[] memory completingParticipantList = new address[](0);
         vm.startPrank(_supervisor);
         pepperStake.approveForParticipants(completingParticipantList);
-        assert(pepperStake.COMPLETING_PARTICIPANT_COUNT() == 0);
-    }
-
-    function testReturnStake() public {
-        PepperStake pepperStake = initializePepperstakeContractWithDefaults();
-        vm.prank(_participant);
-        pepperStake.stake{value: 0.05 ether}();
-        vm.prank(_supervisor);
-        address[] memory completingParticipantList = new address[](1);
-        completingParticipantList[0] = _participant;
-        pepperStake.approveForParticipants(completingParticipantList);
-        vm.prank(_participant);
-        pepperStake.returnStake(completingParticipantList);
-        assert(pepperStake.COMPLETING_PARTICIPANT_COUNT() == 1);
-    }
-
-    function testReturnStakeNonSupervisor() public {
-        PepperStake pepperStake = initializePepperstakeContractWithDefaults();
-        vm.prank(_participant);
-        pepperStake.stake{value: 0.05 ether}();
-        vm.prank(_supervisor);
-        address[] memory completingParticipantList = new address[](1);
-        completingParticipantList[0] = _participant;
-        pepperStake.approveForParticipants(completingParticipantList);
-        vm.prank(_participant2);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                PepperStake
-                    .NOT_AUTHORIZED_TO_RETURN_STAKE_FOR_PARTICIPANT
-                    .selector
-            )
-        );
-        pepperStake.returnStake(completingParticipantList);
+        assert(pepperStake.completingParticipantCount() == 0);
     }
 
     function testPostCompletionWindowDistribution() public {
@@ -282,8 +237,6 @@ contract PepperStakeTest is Test {
         completingParticipantList[0] = _participant;
         vm.prank(_supervisor);
         pepperStake.approveForParticipants(completingParticipantList);
-        vm.prank(_supervisor);
-        pepperStake.returnStake(completingParticipantList);
         assertEq(
             address(pepperStake).balance,
             0.1 ether,
@@ -345,7 +298,7 @@ contract PepperStakeTest is Test {
         PepperStake pepperStakeParticipateOnCreate = new PepperStake{
             value: 0.05 ether
         }(1, defaultLaunchData);
-        assert(pepperStakeParticipateOnCreate.PARTICIPANT_COUNT() == 1);
+        assert(pepperStakeParticipateOnCreate.participantCount() == 1);
     }
 
     function testCreatorParticipationWithIncorrectAmount() public {

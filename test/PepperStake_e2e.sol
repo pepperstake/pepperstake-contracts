@@ -116,48 +116,14 @@ contract PepperStakeTest is Test {
         vm.prank(_supervisor);
         pepperStake.approveForParticipants(approvedParticipants);
 
-        // Test approval by non-supervisor
-        address[] memory approvedParticipants2 = new address[](1);
-        approvedParticipants2[0] = _participant4;
-        vm.prank(_participant4);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                PepperStake.CALLER_IS_NOT_SUPERVISOR.selector
-            )
-        );
-        pepperStake.approveForParticipants(approvedParticipants2);
-
-        // Test return stake by participant
-        vm.prank(_participant);
+        // Test participant can't return stake twice
         address[] memory addressToReturn = new address[](1);
         addressToReturn[0] = _participant;
-        pepperStake.returnStake(addressToReturn);
-        assertEq(pepperStake.totalReturnedStakeAmount(), 0.05 ether);
-
-        // Test participant can't return stake twice
-        vm.prank(_participant);
-        vm.expectRevert(
-            abi.encodeWithSelector(PepperStake.STAKE_ALREADY_RETURNED.selector)
-        );
-        pepperStake.returnStake(addressToReturn);
-
-        // Test participant can't return for other participants
-        vm.prank(_participant);
-        address[] memory addressToReturn2 = new address[](1);
-        addressToReturn2[0] = _participant2;
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                PepperStake
-                    .NOT_AUTHORIZED_TO_RETURN_STAKE_FOR_PARTICIPANT
-                    .selector
-            )
-        );
-        pepperStake.returnStake(addressToReturn2);
-
-        // Test supervisor can return stake
         vm.prank(_supervisor);
-        pepperStake.returnStake(addressToReturn2);
-        assertEq(pepperStake.totalReturnedStakeAmount(), 0.55 ether);
+        vm.expectRevert(
+            abi.encodeWithSelector(PepperStake.INVALID_PARTICIPANT.selector)
+        );
+        pepperStake.approveForParticipants(addressToReturn);
 
         // Test post completion distribution
         vm.warp(15 days);

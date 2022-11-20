@@ -41,8 +41,8 @@ contract PepperStakeDeployerTest is Test {
 
     function testOracleDelegate() public {
         address dummyOracleDelegateAddress = address(dummyOracleDelegate);
-        assertTrue(pepperStake.IS_ORACLE_DELEGATE(dummyOracleDelegateAddress));
-        assertTrue(pepperStake.IS_SUPERVISOR(dummyOracleDelegateAddress));
+        assertTrue(pepperStake.oracleDelegates(dummyOracleDelegateAddress));
+        assertTrue(pepperStake.supervisors(dummyOracleDelegateAddress));
         vm.prank(_participant);
         pepperStake.stake{value: 0.05 ether}();
         address[] memory participantsToCheck = new address[](1);
@@ -51,6 +51,6 @@ contract PepperStakeDeployerTest is Test {
             dummyOracleDelegateAddress,
             participantsToCheck
         );
-        assertEq(pepperStake.COMPLETING_PARTICIPANT_COUNT(), 1);
+        assertEq(pepperStake.completingParticipantCount(), 1);
     }
 }
