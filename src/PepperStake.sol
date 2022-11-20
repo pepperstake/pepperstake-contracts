@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.13;
 
+import "@prb/contracts/math/PRBMath.sol";
+
 import "./interfaces/IPepperStake.sol";
 import "./interfaces/IPepperStakeOracleDelegate.sol";
 
