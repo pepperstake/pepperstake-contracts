@@ -24,6 +24,8 @@ contract PepperStakeTest is Test {
         vm.deal(_supervisor, 100 ether);
     }
 
+    uint256 MAX_FEE = 1_000_000_000;
+
     function initializePepperstakeContractWithDefaults()
         public
         returns (PepperStake)
@@ -51,10 +53,65 @@ contract PepperStakeTest is Test {
             false,
             false,
             true,
+            0,
+            address(0),
+            0,
             ""
         );
 
-        PepperStake pepperStake = new PepperStake(1, defaultLaunchData);
+        PepperStake pepperStake = new PepperStake(
+            1,
+            defaultLaunchData,
+            0,
+            address(0)
+        );
+        return pepperStake;
+    }
+
+    function initializePepperstakeContractWithFees()
+        public
+        returns (PepperStake)
+    {
+        address[] memory supervisors = new address[](1);
+        supervisors[0] = _supervisor;
+
+        address[] memory unreturnedStakeBeneficiaries = new address[](1);
+        unreturnedStakeBeneficiaries[0] = address(
+            bytes20(keccak256("PepperstakeDAO"))
+        );
+
+        uint256[] memory stakingTiers = new uint256[](2);
+        stakingTiers[0] = 0.05 ether;
+        stakingTiers[1] = 0.5 ether;
+
+        // set fees
+        uint256 protocolFee = 10_000_000;
+        uint256 creatorFee = 10_000_000;
+        uint256 supervisorFee = 10_000_000;
+
+        LaunchPepperStakeData memory defaultLaunchData = LaunchPepperStakeData(
+            supervisors,
+            new address[](0),
+            unreturnedStakeBeneficiaries,
+            new address[](0),
+            stakingTiers,
+            14 days,
+            100,
+            false,
+            false,
+            true,
+            creatorFee,
+            address(0),
+            supervisorFee,
+            ""
+        );
+
+        PepperStake pepperStake = new PepperStake(
+            1,
+            defaultLaunchData,
+            protocolFee,
+            address(0)
+        );
         return pepperStake;
     }
 
@@ -101,9 +158,17 @@ contract PepperStakeTest is Test {
             false,
             false,
             true,
+            0,
+            address(0),
+            0,
             ""
         );
-        PepperStake pepperStake2 = new PepperStake(1, launchData);
+        PepperStake pepperStake2 = new PepperStake(
+            1,
+            launchData,
+            0,
+            address(0)
+        );
         vm.startPrank(_participant);
         vm.expectRevert(
             abi.encodeWithSelector(
@@ -131,9 +196,17 @@ contract PepperStakeTest is Test {
             true,
             false,
             true,
+            0,
+            address(0),
+            0,
             ""
         );
-        PepperStake pepperStake3 = new PepperStake(1, launchData);
+        PepperStake pepperStake3 = new PepperStake(
+            1,
+            launchData,
+            0,
+            address(0)
+        );
         vm.prank(_participant);
         pepperStake3.stake{value: 0.05 ether}();
         vm.prank(_participant2);
@@ -292,12 +365,15 @@ contract PepperStakeTest is Test {
             false,
             false,
             true,
+            0,
+            address(0),
+            0,
             ""
         );
         vm.prank(_participant);
         PepperStake pepperStakeParticipateOnCreate = new PepperStake{
             value: 0.05 ether
-        }(1, defaultLaunchData);
+        }(1, defaultLaunchData, 0, address(0));
         assert(pepperStakeParticipateOnCreate.participantCount() == 1);
     }
 
@@ -316,18 +392,73 @@ contract PepperStakeTest is Test {
             false,
             false,
             true,
+            0,
+            address(0),
+            0,
             ""
         );
         vm.prank(_participant);
         vm.expectRevert(
             abi.encodeWithSelector(PepperStake.INCORRECT_STAKE_AMOUNT.selector)
         );
-        new PepperStake{value: 0.5 ether}(1, defaultLaunchData);
+        new PepperStake{value: 0.5 ether}(1, defaultLaunchData, 0, address(0));
 
         vm.prank(_participant);
         vm.expectRevert(
             abi.encodeWithSelector(PepperStake.INCORRECT_STAKE_AMOUNT.selector)
         );
-        new PepperStake{value: 0.15 ether}(1, defaultLaunchData);
+        new PepperStake{value: 0.15 ether}(1, defaultLaunchData, 0, address(0));
+    }
+
+    function testFeeSumExceeds100Percent() public {
+        uint256[] memory stakingTiers = new uint256[](1);
+        stakingTiers[0] = 0.05 ether;
+        LaunchPepperStakeData memory launchData = LaunchPepperStakeData(
+            new address[](0),
+            new address[](0),
+            new address[](0),
+            new address[](0),
+            stakingTiers,
+            14 days,
+            100,
+            false,
+            false,
+            true,
+            MAX_FEE + 1,
+            address(0),
+            0,
+            ""
+        );
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                PepperStake.FEE_SUM_EXCEEDS_100_PERCENT.selector
+            )
+        );
+        new PepperStake(1, launchData, 0, address(0));
+
+        launchData = LaunchPepperStakeData(
+            new address[](0),
+            new address[](0),
+            new address[](0),
+            new address[](0),
+            stakingTiers,
+            14 days,
+            100,
+            false,
+            false,
+            true,
+            0,
+            address(0),
+            0,
+            ""
+        );
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                PepperStake.FEE_SUM_EXCEEDS_100_PERCENT.selector
+            )
+        );
+        new PepperStake(1, launchData, MAX_FEE + 1, address(0));
     }
 }

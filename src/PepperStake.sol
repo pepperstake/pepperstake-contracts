@@ -9,6 +9,8 @@ import "./interfaces/IPepperStakeOracleDelegate.sol";
 import "./structs/Participant.sol";
 import "./structs/LaunchPepperStakeData.sol";
 
+import "forge-std/console.sol";
+
 contract PepperStake is IPepperStake {
     //*********************************************************************//
     // --------------------------- custom errors ------------------------- //
@@ -25,10 +27,13 @@ contract PepperStake is IPepperStake {
     error INVALID_PARTICIPANT();
     error POST_COMPLETION_WINDOW_DISTRIBUTION_ALREADY_CALLED();
     error INVALID_ORACLE_DELEGATE();
+    error FEE_SUM_EXCEEDS_100_PERCENT();
 
     //*********************************************************************//
     // --------------------- public stored properties -------------------- //
     //*********************************************************************//
+
+    uint256 MAX_FEE = 1_000_000_000;
 
     uint256 projectId;
 
@@ -45,20 +50,38 @@ contract PepperStake is IPepperStake {
     bool public shouldUseSupervisorInactionGuard;
     string public metadataURI;
 
+    uint256 creatorFee;
+    address creatorFeeBeneficiary;
+    uint256 supervisorTip;
+    uint256 protocolFee;
+    address protocolFeeBeneficiary;
+
     // Internal State
     address[] public participantList;
+    address[] public supervisorList;
     uint256 public completionWindowEndTimestamp;
     uint256 public participantCount;
     uint256 public completingParticipantCount;
     uint256 public totalSponsorContribution;
     uint256 public totalStakeAmount;
     uint256 public totalReturnedStakeAmount;
+    uint256 public totalFeesCollected;
     bool public isReturnStakeCalled;
     bool public isPostReturnWindowDistributionCalled;
 
-    constructor(uint256 _projectId, LaunchPepperStakeData memory _launchData)
-        payable
-    {
+    constructor(
+        uint256 _projectId,
+        LaunchPepperStakeData memory _launchData,
+        uint256 _protocolFee,
+        address _protocolFeeBeneficiary
+    ) payable {
+        if (
+            _protocolFee + _launchData.creatorFee + _launchData.supervisorTip >
+            MAX_FEE
+        ) {
+            revert FEE_SUM_EXCEEDS_100_PERCENT();
+        }
+
         projectId = _projectId;
 
         // Set up supervisors
@@ -102,7 +125,14 @@ contract PepperStake is IPepperStake {
             .shouldUseParticipantAllowList;
         metadataURI = _launchData.metadataURI;
 
+        supervisorList = _launchData.supervisors;
         supervisors[address(this)] = true;
+
+        creatorFee = _launchData.creatorFee;
+        creatorFeeBeneficiary = _launchData.creatorFeeBeneficiary;
+        supervisorTip = _launchData.supervisorTip;
+        protocolFee = _protocolFee;
+        protocolFeeBeneficiary = _protocolFeeBeneficiary;
 
         completionWindowEndTimestamp =
             block.timestamp +
@@ -112,6 +142,7 @@ contract PepperStake is IPepperStake {
         totalSponsorContribution = 0;
         totalStakeAmount = 0;
         totalReturnedStakeAmount = 0;
+        totalFeesCollected = 0;
         isReturnStakeCalled = false;
         isPostReturnWindowDistributionCalled = false;
 
@@ -165,6 +196,35 @@ contract PepperStake is IPepperStake {
         emit Sponsor(msg.sender, msg.value);
     }
 
+    function _returnStake(address _participantAddress) internal {
+        Participant memory _participant = participants[_participantAddress];
+        // Take fees and put them in escrow
+        uint256 protocolFeeAmount = PRBMath.mulDiv(
+            _participant.stakeAmount,
+            protocolFee,
+            MAX_FEE
+        );
+        uint256 creatorFeeAmount = PRBMath.mulDiv(
+            _participant.stakeAmount,
+            creatorFee,
+            MAX_FEE
+        );
+        uint256 supervisorTipAmount = PRBMath.mulDiv(
+            _participant.stakeAmount,
+            supervisorTip,
+            MAX_FEE
+        );
+        uint256 totalFee = protocolFeeAmount +
+            creatorFeeAmount +
+            supervisorTipAmount;
+        uint256 returnAmount = _participant.stakeAmount - totalFee;
+        payable(_participantAddress).transfer(returnAmount);
+        participants[_participantAddress].completed = true;
+        completingParticipantCount++;
+        totalReturnedStakeAmount += returnAmount;
+        totalFeesCollected += totalFee;
+    }
+
     function approveForParticipants(address[] memory _participants) external {
         if (!supervisors[msg.sender]) revert CALLER_IS_NOT_SUPERVISOR();
         if (block.timestamp > completionWindowEndTimestamp)
@@ -177,13 +237,8 @@ contract PepperStake is IPepperStake {
         }
 
         for (uint256 i = 0; i < _participants.length; i++) {
-            address completingParticipant = _participants[i];
-            uint256 stakeAmount = participants[completingParticipant]
-                .stakeAmount;
-            payable(completingParticipant).transfer(stakeAmount);
-            participants[completingParticipant].completed = true;
-            completingParticipantCount++;
-            totalReturnedStakeAmount += stakeAmount;
+            address completingParticipantAddress = _participants[i];
+            _returnStake(completingParticipantAddress);
         }
         isReturnStakeCalled = true;
 
@@ -213,7 +268,7 @@ contract PepperStake is IPepperStake {
         this.approveForParticipants(completingParticipants);
     }
 
-    function _distributeUnreturnedStake() private {
+    function _distributeUnreturnedStake() internal {
         if (participantCount - completingParticipantCount > 0) {
             address[] memory beneficiaries;
             if (shouldUseSupervisorInactionGuard && !isReturnStakeCalled) {
@@ -238,7 +293,60 @@ contract PepperStake is IPepperStake {
         }
     }
 
-    function _distributeSponsorContribution() private {
+    function _distributeFees() internal {
+        uint256 protocolFeeAmount = PRBMath.mulDiv(
+            totalStakeAmount,
+            protocolFee,
+            MAX_FEE
+        );
+        uint256 creatorFeeAmount = PRBMath.mulDiv(
+            totalStakeAmount,
+            creatorFee,
+            MAX_FEE
+        );
+        uint256 supervisorTipAmount = PRBMath.mulDiv(
+            totalStakeAmount,
+            supervisorTip,
+            MAX_FEE
+        );
+        console.log("Fee amounts");
+        console.log(protocolFeeAmount);
+        console.log(creatorFeeAmount);
+        console.log(supervisorTipAmount);
+        if (protocolFeeAmount > 0) {
+            console.log("Protocol fee");
+            payable(protocolFeeBeneficiary).transfer(protocolFeeAmount);
+            console.log("Protocol fee sent");
+            console.log(address(this).balance);
+        }
+        if (creatorFeeAmount > 0) {
+            console.log("Creator fee");
+            payable(creatorFeeBeneficiary).transfer(creatorFeeAmount);
+            console.log("Creator fee sent");
+            console.log(address(this).balance);
+        }
+        if (supervisorTipAmount > 0) {
+            console.log(supervisorList.length);
+            uint256 amountPerSupervisor = supervisorTipAmount /
+                supervisorList.length;
+            console.log("Supervisor tip");
+            for (uint256 i = 0; i < supervisorList.length; i++) {
+                payable(supervisorList[i]).transfer(amountPerSupervisor);
+            }
+        }
+
+        // emit DistributeFees(
+        //     msg.sender,
+        //     protocolFeeBeneficiary,
+        //     creator,
+        //     sponsor,
+        //     protocolFee,
+        //     creatorFee,
+        //     sponsorTip
+        // );
+    }
+
+    function _distributeSponsorContribution() internal {
         // TODO: Handle case with sponsor contribution but no completing participants
         if (completingParticipantCount > 0) {
             uint256 beneficiaryShare = totalSponsorContribution /
@@ -270,8 +378,21 @@ contract PepperStake is IPepperStake {
             revert COMPLETION_WINDOW_NOT_OVER();
         if (isPostReturnWindowDistributionCalled)
             revert POST_COMPLETION_WINDOW_DISTRIBUTION_ALREADY_CALLED();
+        console.log("Finishing contract");
+        console.log(
+            "Total collected: ",
+            totalStakeAmount + totalSponsorContribution
+        );
+        console.log("Total stake returned: ", totalReturnedStakeAmount);
+        console.log("Total fees collected: ", totalFeesCollected);
+        console.log("Total sponsor contribution: ", totalSponsorContribution);
+        console.log("Initial balance:", address(this).balance);
         _distributeSponsorContribution();
+        console.log("After sponsor contribution:", address(this).balance);
+        _distributeFees();
+        console.log("After fees:", address(this).balance);
         _distributeUnreturnedStake();
+        console.log("After unreturned stake:", address(this).balance);
         isPostReturnWindowDistributionCalled = true;
     }
 }

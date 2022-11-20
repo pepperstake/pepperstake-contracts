@@ -26,6 +26,9 @@ contract PepperStakeDeployerTest is Test {
             false,
             false,
             true,
+            0,
+            address(0),
+            0,
             ""
         );
         IPepperStake pepperStake = pepperStakeDeployer.deployPepperStake(

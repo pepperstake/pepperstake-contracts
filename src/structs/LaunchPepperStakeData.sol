@@ -12,5 +12,8 @@ struct LaunchPepperStakeData {
     bool shouldUseParticipantAllowList;
     bool shouldParticipantsShareUnreturnedStake;
     bool shouldUseSupervisorInactionGuard;
+    uint256 creatorFee;
+    address creatorFeeBeneficiary;
+    uint256 supervisorTip;
     string metadataURI;
 }
