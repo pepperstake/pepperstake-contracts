@@ -6,7 +6,7 @@ interface IPepperStake {
     event Sponsor(address indexed participant, uint256 amount);
     event ApproveForParticipants(
         address indexed supervisor,
-        address[] completingParticipants
+        address[] participants
     );
     event ReturnStake(
         address indexed participant,

@@ -267,7 +267,7 @@ contract PepperStake is IPepperStake {
         }
         isReturnStakeCalled = true;
 
-        emit ApproveForParticipants(msg.sender, completingParticipants);
+        emit ApproveForParticipants(msg.sender, _participants);
     }
 
     function checkOracle(
@@ -334,6 +334,7 @@ contract PepperStake is IPepperStake {
             supervisorTip,
             MAX_FEE
         );
+        uint256 supervisorShare = supervisorTipAmount / supervisorList.length;
         if (protocolFeeAmount > 0) {
             payable(protocolFeeBeneficiary).transfer(protocolFeeAmount);
         }
@@ -341,8 +342,6 @@ contract PepperStake is IPepperStake {
             payable(creatorFeeBeneficiary).transfer(creatorFeeAmount);
         }
         if (supervisorTipAmount > 0) {
-            uint256 supervisorShare = supervisorTipAmount /
-                supervisorList.length;
             for (uint256 i = 0; i < supervisorList.length; i++) {
                 payable(supervisorList[i]).transfer(supervisorShare);
             }
