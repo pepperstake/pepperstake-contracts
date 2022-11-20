@@ -8,7 +8,7 @@ import "../src/interfaces/IPepperStakeOracleDelegate.sol";
 import "../src/structs/LaunchPepperStakeData.sol";
 import "./mock/DummyOracleDelegate.sol";
 
-contract PepperStakeDeployerTest is Test {
+contract PepperStakeOracleTest is Test {
     PepperStake public pepperStake;
     DummyOracleDelegate public dummyOracleDelegate;
     address internal _participant = address(bytes20(keccak256("participant")));
@@ -32,9 +32,12 @@ contract PepperStakeDeployerTest is Test {
             false,
             false,
             true,
+            0,
+            address(0),
+            0,
             ""
         );
-        pepperStake = new PepperStake(1, launchData);
+        pepperStake = new PepperStake(1, launchData, 0, address(0));
         vm.label(_participant, "participant");
         vm.deal(_participant, 100 ether);
     }

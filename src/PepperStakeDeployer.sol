@@ -28,7 +28,12 @@ contract PepperStakeDeployer is IPepperStakeDeployer {
         external
         returns (IPepperStake pepperStake)
     {
-        pepperStake = new PepperStake(projectCount, _launchData);
+        pepperStake = new PepperStake(
+            projectCount,
+            _launchData,
+            protocolFee,
+            protocolFeeBeneficiary
+        );
         projectCount++;
         // emit DeployPepperStake(
         //     pepperStake,

@@ -19,5 +19,8 @@
   "bugs": {
     "url": "https://github.com/pepperstake/pepperstake-contracts/issues"
   },
-  "homepage": "https://github.com/pepperstake/pepperstake-contracts#readme"
+  "homepage": "https://github.com/pepperstake/pepperstake-contracts#readme",
+  "dependencies": {
+    "@paulrberg/contracts": "^3.7.0"
+  }
 }

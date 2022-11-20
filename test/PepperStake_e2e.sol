@@ -7,7 +7,7 @@ import "../src/structs/LaunchPepperStakeData.sol";
 import "../src/interfaces/IPepperStakeOracleDelegate.sol";
 import "./mock/DummyOracleDelegate.sol";
 
-contract PepperStakeTest is Test {
+contract PepperStakeE2ETest is Test {
     address internal _participant = address(bytes20(keccak256("participant")));
     address internal _participant2 =
         address(bytes20(keccak256("participant2")));
@@ -17,9 +17,12 @@ contract PepperStakeTest is Test {
         address(bytes20(keccak256("participant4")));
     address internal _participant5 =
         address(bytes20(keccak256("participant5")));
+    address internal _creator = address(bytes20(keccak256("creator")));
     address internal _sponsor = address(bytes20(keccak256("sponsor")));
     address internal _supervisor = address(bytes20(keccak256("supervisor")));
     address internal _beneficiary = address(bytes20(keccak256("beneficiary")));
+    address internal _protocolBeneficiary =
+        address(bytes20(keccak256("protocolBeneficiary")));
 
     PepperStake public pepperStake;
     DummyOracleDelegate public dummyOracleDelegate;
@@ -31,15 +34,18 @@ contract PepperStakeTest is Test {
         vm.label(_participant4, "participant4");
         vm.label(_participant5, "participant5");
 
+        vm.label(_creator, "creator");
         vm.label(_sponsor, "sponsor");
         vm.label(_supervisor, "supervisor");
         vm.label(_beneficiary, "beneficiary");
+        vm.label(_protocolBeneficiary, "protocolBeneficiary");
 
         vm.deal(_participant, 100 ether);
         vm.deal(_participant2, 100 ether);
         vm.deal(_participant3, 100 ether);
         vm.deal(_participant4, 100 ether);
         vm.deal(_participant5, 100 ether);
+        vm.deal(_creator, 100 ether);
         vm.deal(_sponsor, 100 ether);
         vm.deal(_supervisor, 100 ether);
 
@@ -63,6 +69,10 @@ contract PepperStakeTest is Test {
         address[] memory oracleDelegates = new address[](1);
         oracleDelegates[0] = address(dummyOracleDelegate);
 
+        uint256 protocolFee = 10_000_000;
+        uint256 creatorFee = 10_000_000;
+        uint256 supervisorTip = 10_000_000;
+
         LaunchPepperStakeData memory defaultLaunchData = LaunchPepperStakeData(
             supervisors,
             allowList,
@@ -74,10 +84,18 @@ contract PepperStakeTest is Test {
             true,
             false,
             true,
+            creatorFee,
+            _creator,
+            supervisorTip,
             ""
         );
 
-        pepperStake = new PepperStake(1, defaultLaunchData);
+        pepperStake = new PepperStake(
+            1,
+            defaultLaunchData,
+            protocolFee,
+            _protocolBeneficiary
+        );
     }
 
     function testE2E() public {
@@ -130,7 +148,8 @@ contract PepperStakeTest is Test {
         vm.prank(_supervisor);
         pepperStake.postCompletionWindowDistribution();
         assertEq(address(pepperStake).balance, 0 ether);
-        assert(0.05 ether < address(_beneficiary).balance);
-        assert(address(_beneficiary).balance < 0.051 ether);
+        uint256 afterFees = .05 ether * 0.97;
+        assert(afterFees < address(_beneficiary).balance);
+        assert(address(_beneficiary).balance < afterFees + .001 ether);
     }
 }
