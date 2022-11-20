@@ -241,6 +241,13 @@ contract PepperStake is IPepperStake {
         participants[_participantAddress].completed = true;
         completingParticipantCount++;
         totalReturnedStakeAmount += returnAmount;
+
+        emit ReturnStake(
+            _participantAddress,
+            _participant.stakeAmount,
+            totalFee,
+            returnAmount
+        );
     }
 
     function approveForParticipants(address[] memory _participants) external {
@@ -260,7 +267,7 @@ contract PepperStake is IPepperStake {
         }
         isReturnStakeCalled = true;
 
-        // emit ReturnStake(msg.sender, completingParticipants, participant.stakeAmount);
+        emit ApproveForParticipants(msg.sender, _participants);
     }
 
     function checkOracle(
@@ -327,6 +334,7 @@ contract PepperStake is IPepperStake {
             supervisorTip,
             MAX_FEE
         );
+        uint256 supervisorShare = supervisorTipAmount / supervisorList.length;
         if (protocolFeeAmount > 0) {
             payable(protocolFeeBeneficiary).transfer(protocolFeeAmount);
         }
@@ -334,26 +342,24 @@ contract PepperStake is IPepperStake {
             payable(creatorFeeBeneficiary).transfer(creatorFeeAmount);
         }
         if (supervisorTipAmount > 0) {
-            uint256 amountPerSupervisor = supervisorTipAmount /
-                supervisorList.length;
             for (uint256 i = 0; i < supervisorList.length; i++) {
-                payable(supervisorList[i]).transfer(amountPerSupervisor);
+                payable(supervisorList[i]).transfer(supervisorShare);
             }
         }
 
-        // emit DistributeFees(
-        //     msg.sender,
-        //     protocolFeeBeneficiary,
-        //     creator,
-        //     sponsor,
-        //     protocolFee,
-        //     creatorFee,
-        //     sponsorTip
-        // );
+        emit DistributeFees(
+            msg.sender,
+            protocolFeeAmount,
+            protocolFeeBeneficiary,
+            creatorFeeAmount,
+            creatorFeeBeneficiary,
+            supervisorTipAmount,
+            supervisorList,
+            supervisorShare
+        );
     }
 
     function _distributeSponsorContribution() internal {
-        // TODO: Handle case with sponsor contribution but no completing participants
         if (completingParticipantCount > 0) {
             uint256 beneficiaryShare = totalSponsorContribution /
                 completingParticipantCount;
