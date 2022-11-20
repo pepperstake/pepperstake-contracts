@@ -9,8 +9,6 @@ import "./interfaces/IPepperStakeOracleDelegate.sol";
 import "./structs/Participant.sol";
 import "./structs/LaunchPepperStakeData.sol";
 
-import "forge-std/console.sol";
-
 contract PepperStake is IPepperStake {
     //*********************************************************************//
     // --------------------------- custom errors ------------------------- //
@@ -181,6 +179,27 @@ contract PepperStake is IPepperStake {
         participantCount++;
         totalStakeAmount += msg.value;
 
+        uint256 protocolFeeAmount = PRBMath.mulDiv(
+            msg.value,
+            protocolFee,
+            MAX_FEE
+        );
+        uint256 creatorFeeAmount = PRBMath.mulDiv(
+            msg.value,
+            creatorFee,
+            MAX_FEE
+        );
+        uint256 supervisorTipAmount = PRBMath.mulDiv(
+            msg.value,
+            supervisorTip,
+            MAX_FEE
+        );
+
+        uint256 totalFee = protocolFeeAmount +
+            creatorFeeAmount +
+            supervisorTipAmount;
+        totalFeesCollected += totalFee;
+
         emit Stake(msg.sender, msg.value);
     }
 
@@ -222,7 +241,6 @@ contract PepperStake is IPepperStake {
         participants[_participantAddress].completed = true;
         completingParticipantCount++;
         totalReturnedStakeAmount += returnAmount;
-        totalFeesCollected += totalFee;
     }
 
     function approveForParticipants(address[] memory _participants) external {
@@ -309,27 +327,15 @@ contract PepperStake is IPepperStake {
             supervisorTip,
             MAX_FEE
         );
-        console.log("Fee amounts");
-        console.log(protocolFeeAmount);
-        console.log(creatorFeeAmount);
-        console.log(supervisorTipAmount);
         if (protocolFeeAmount > 0) {
-            console.log("Protocol fee");
             payable(protocolFeeBeneficiary).transfer(protocolFeeAmount);
-            console.log("Protocol fee sent");
-            console.log(address(this).balance);
         }
         if (creatorFeeAmount > 0) {
-            console.log("Creator fee");
             payable(creatorFeeBeneficiary).transfer(creatorFeeAmount);
-            console.log("Creator fee sent");
-            console.log(address(this).balance);
         }
         if (supervisorTipAmount > 0) {
-            console.log(supervisorList.length);
             uint256 amountPerSupervisor = supervisorTipAmount /
                 supervisorList.length;
-            console.log("Supervisor tip");
             for (uint256 i = 0; i < supervisorList.length; i++) {
                 payable(supervisorList[i]).transfer(amountPerSupervisor);
             }
@@ -378,21 +384,9 @@ contract PepperStake is IPepperStake {
             revert COMPLETION_WINDOW_NOT_OVER();
         if (isPostReturnWindowDistributionCalled)
             revert POST_COMPLETION_WINDOW_DISTRIBUTION_ALREADY_CALLED();
-        console.log("Finishing contract");
-        console.log(
-            "Total collected: ",
-            totalStakeAmount + totalSponsorContribution
-        );
-        console.log("Total stake returned: ", totalReturnedStakeAmount);
-        console.log("Total fees collected: ", totalFeesCollected);
-        console.log("Total sponsor contribution: ", totalSponsorContribution);
-        console.log("Initial balance:", address(this).balance);
         _distributeSponsorContribution();
-        console.log("After sponsor contribution:", address(this).balance);
         _distributeFees();
-        console.log("After fees:", address(this).balance);
         _distributeUnreturnedStake();
-        console.log("After unreturned stake:", address(this).balance);
         isPostReturnWindowDistributionCalled = true;
     }
 }

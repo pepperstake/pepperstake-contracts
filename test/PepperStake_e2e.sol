@@ -148,7 +148,8 @@ contract PepperStakeE2ETest is Test {
         vm.prank(_supervisor);
         pepperStake.postCompletionWindowDistribution();
         assertEq(address(pepperStake).balance, 0 ether);
-        assert(0.0485 ether < address(_beneficiary).balance);
-        assert(address(_beneficiary).balance < 0.04851 ether);
+        uint256 afterFees = .05 ether * 0.97;
+        assert(afterFees < address(_beneficiary).balance);
+        assert(address(_beneficiary).balance < afterFees + .001 ether);
     }
 }
