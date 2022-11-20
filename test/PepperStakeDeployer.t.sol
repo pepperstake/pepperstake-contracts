@@ -32,6 +32,6 @@ contract PepperStakeDeployerTest is Test {
             launchData
         );
         assertTrue(address(pepperStake) != address(0));
-        assertTrue(pepperStake.projectId() == 1);
+        assertTrue(pepperStake.PROJECT_ID() == 1);
     }
 }

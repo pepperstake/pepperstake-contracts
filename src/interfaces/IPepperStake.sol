@@ -4,7 +4,7 @@ pragma solidity ^0.8.13;
 interface IPepperStake {
     event Stake(address indexed participant, uint256 amount);
     event Sponsor(address indexed participant, uint256 amount);
-    event ReturnStake(
+    event ApproveForParticipants(
         address indexed supervisor,
         address[] completingParticipants,
         uint256 amount
@@ -26,9 +26,14 @@ interface IPepperStake {
 
     function sponsor() external payable;
 
-    function returnStake(address[] memory completingParticipants) external;
+    function approveForParticipants(address[] memory _participants) external;
+
+    function checkOracle(
+        address _oracleDelegate,
+        address[] memory _participants
+    ) external;
 
     function postCompletionWindowDistribution() external;
 
-    function projectId() external view returns (uint256);
+    function PROJECT_ID() external view returns (uint256);
 }

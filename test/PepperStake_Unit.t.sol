@@ -183,19 +183,6 @@ contract PepperStakeTest is Test {
         assert(pepperStake.completingParticipantCount() == 1);
     }
 
-    function testParticipantHasNotCompleted() public {
-        PepperStake pepperStake = initializePepperstakeContractWithDefaults();
-        vm.startPrank(_participant);
-        address[] memory completingParticipantList = new address[](1);
-        completingParticipantList[0] = _participant;
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                PepperStake.PARTICIPANT_HAS_NOT_COMPLETED.selector
-            )
-        );
-        pepperStake.returnStake(completingParticipantList);
-    }
-
     function testApproveWindowOver() public {
         PepperStake pepperStake = initializePepperstakeContractWithDefaults();
         vm.prank(_participant);
@@ -233,38 +220,6 @@ contract PepperStakeTest is Test {
         assert(pepperStake.completingParticipantCount() == 0);
     }
 
-    function testReturnStake() public {
-        PepperStake pepperStake = initializePepperstakeContractWithDefaults();
-        vm.prank(_participant);
-        pepperStake.stake{value: 0.05 ether}();
-        vm.prank(_supervisor);
-        address[] memory completingParticipantList = new address[](1);
-        completingParticipantList[0] = _participant;
-        pepperStake.approveForParticipants(completingParticipantList);
-        vm.prank(_participant);
-        pepperStake.returnStake(completingParticipantList);
-        assert(pepperStake.completingParticipantCount() == 1);
-    }
-
-    function testReturnStakeNonSupervisor() public {
-        PepperStake pepperStake = initializePepperstakeContractWithDefaults();
-        vm.prank(_participant);
-        pepperStake.stake{value: 0.05 ether}();
-        vm.prank(_supervisor);
-        address[] memory completingParticipantList = new address[](1);
-        completingParticipantList[0] = _participant;
-        pepperStake.approveForParticipants(completingParticipantList);
-        vm.prank(_participant2);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                PepperStake
-                    .NOT_AUTHORIZED_TO_RETURN_STAKE_FOR_PARTICIPANT
-                    .selector
-            )
-        );
-        pepperStake.returnStake(completingParticipantList);
-    }
-
     function testPostCompletionWindowDistribution() public {
         PepperStake pepperStake = initializePepperstakeContractWithDefaults();
         vm.prank(_participant);
@@ -282,8 +237,6 @@ contract PepperStakeTest is Test {
         completingParticipantList[0] = _participant;
         vm.prank(_supervisor);
         pepperStake.approveForParticipants(completingParticipantList);
-        vm.prank(_supervisor);
-        pepperStake.returnStake(completingParticipantList);
         assertEq(
             address(pepperStake).balance,
             0.1 ether,

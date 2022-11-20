@@ -7,8 +7,6 @@ import "./interfaces/IPepperStakeOracleDelegate.sol";
 import "./structs/Participant.sol";
 import "./structs/LaunchPepperStakeData.sol";
 
-import "forge-std/console.sol";
-
 contract PepperStake is IPepperStake {
     //*********************************************************************//
     // --------------------------- custom errors ------------------------- //
@@ -18,22 +16,19 @@ contract PepperStake is IPepperStake {
     error PARTICIPANT_NOT_ALLOWED();
     error INCORRECT_STAKE_AMOUNT();
     error ALREADY_PARTICIPATING();
+    error ALREADY_COMPLETED();
     error COMPLETION_WINDOW_OVER();
     error COMPLETION_WINDOW_NOT_OVER();
     error CALLER_IS_NOT_SUPERVISOR();
     error INVALID_PARTICIPANT();
     error POST_COMPLETION_WINDOW_DISTRIBUTION_ALREADY_CALLED();
     error INVALID_ORACLE_DELEGATE();
-    error NOT_AUTHORIZED_TO_RETURN_STAKE_FOR_PARTICIPANT();
-    error PARTICIPANT_LIST_AND_SHOULD_RETURN_STAKE_LIST_LENGTHS_MISMATCH();
-    error PARTICIPANT_HAS_NOT_COMPLETED();
-    error STAKE_ALREADY_RETURNED();
 
     //*********************************************************************//
     // --------------------- public stored properties -------------------- //
     //*********************************************************************//
 
-    uint256 public projectId;
+    uint256 projectId;
 
     mapping(address => Participant) public participants;
     mapping(address => bool) public supervisors;
@@ -53,10 +48,10 @@ contract PepperStake is IPepperStake {
     uint256 public completionWindowEndTimestamp;
     uint256 public participantCount;
     uint256 public completingParticipantCount;
-    uint256 public totalStakeAmount;
     uint256 public totalSponsorContribution;
+    uint256 public totalStakeAmount;
     uint256 public totalReturnedStakeAmount;
-    bool public hasSupervisorActed;
+    bool public isReturnStakeCalled;
     bool public isPostReturnWindowDistributionCalled;
 
     constructor(uint256 _projectId, LaunchPepperStakeData memory _launchData)
@@ -112,10 +107,10 @@ contract PepperStake is IPepperStake {
             completionWindowSeconds;
         participantCount = 0;
         completingParticipantCount = 0;
+        totalSponsorContribution = 0;
         totalStakeAmount = 0;
         totalReturnedStakeAmount = 0;
-        totalSponsorContribution = 0;
-        hasSupervisorActed = false;
+        isReturnStakeCalled = false;
         isPostReturnWindowDistributionCalled = false;
 
         if (msg.value > 0) {
@@ -123,12 +118,8 @@ contract PepperStake is IPepperStake {
         }
     }
 
-    function getParticipant(address _participant)
-        external
-        view
-        returns (Participant memory)
-    {
-        return participants[_participant];
+    function PROJECT_ID() external view override returns (uint256) {
+        return projectId;
     }
 
     function _stake() private {
@@ -150,7 +141,6 @@ contract PepperStake is IPepperStake {
             isAllowedToParticipate: true,
             participated: true,
             completed: false,
-            stakeReturned: false,
             stakeAmount: msg.value
         });
         participants[msg.sender] = participantData;
@@ -173,35 +163,15 @@ contract PepperStake is IPepperStake {
         emit Sponsor(msg.sender, msg.value);
     }
 
-    function approveForParticipants(address[] memory _completingParticipants)
-        external
-    {
+    function approveForParticipants(address[] memory _participants) external {
         if (!supervisors[msg.sender]) revert CALLER_IS_NOT_SUPERVISOR();
         if (block.timestamp > completionWindowEndTimestamp)
             revert COMPLETION_WINDOW_OVER();
-        for (uint256 i = 0; i < _completingParticipants.length; i++) {
-            if (!participants[_completingParticipants[i]].participated)
-                revert INVALID_PARTICIPANT();
-        }
-
-        for (uint256 i = 0; i < _completingParticipants.length; i++) {
-            address completingParticipant = _completingParticipants[i];
-            participants[completingParticipant].completed = true;
-            completingParticipantCount++;
-        }
-        hasSupervisorActed = true;
-    }
-
-    function returnStake(address[] memory _participants) external {
-        bool isReturningForSelf = _participants.length == 1 &&
-            _participants[0] == msg.sender;
-        if (!supervisors[msg.sender] && !isReturningForSelf)
-            revert NOT_AUTHORIZED_TO_RETURN_STAKE_FOR_PARTICIPANT();
         for (uint256 i = 0; i < _participants.length; i++) {
-            if (!participants[_participants[i]].completed)
-                revert PARTICIPANT_HAS_NOT_COMPLETED();
-            if (participants[_participants[i]].stakeReturned)
-                revert STAKE_ALREADY_RETURNED();
+            if (!participants[_participants[i]].participated)
+                revert INVALID_PARTICIPANT();
+            if (participants[_participants[i]].completed)
+                revert INVALID_PARTICIPANT();
         }
 
         for (uint256 i = 0; i < _participants.length; i++) {
@@ -209,28 +179,32 @@ contract PepperStake is IPepperStake {
             uint256 stakeAmount = participants[completingParticipant]
                 .stakeAmount;
             payable(completingParticipant).transfer(stakeAmount);
-            participants[completingParticipant].stakeReturned = true;
+            participants[completingParticipant].completed = true;
+            completingParticipantCount++;
             totalReturnedStakeAmount += stakeAmount;
         }
+        isReturnStakeCalled = true;
+
+        // emit ReturnStake(msg.sender, completingParticipants, participant.stakeAmount);
     }
 
     function checkOracle(
         address _oracleDelegate,
-        address[] memory participantsToCheck
+        address[] memory _participants
     ) external {
         if (!oracleDelegates[_oracleDelegate]) revert INVALID_ORACLE_DELEGATE();
         IPepperStakeOracleDelegate oracleDelegate = IPepperStakeOracleDelegate(
             _oracleDelegate
         );
         (bool[] memory results, uint256 completionCount) = oracleDelegate
-            .checkForAddresses(participantsToCheck);
+            .checkForAddresses(_participants);
         address[] memory completingParticipants = new address[](
             completionCount
         );
         uint256 winnerCount = 0;
         for (uint256 i = 0; i < results.length; i++) {
             if (results[i]) {
-                completingParticipants[winnerCount] = participantsToCheck[i];
+                completingParticipants[winnerCount] = _participants[i];
                 winnerCount++;
             }
         }
@@ -238,17 +212,27 @@ contract PepperStake is IPepperStake {
     }
 
     function _distributeUnreturnedStake() private {
-        for (uint256 i = 0; i < participantList.length; i++) {
-            address participant = participantList[i];
-            if (
-                participants[participant].completed &&
-                !participants[participant].stakeReturned
-            ) {
-                uint256 stakeAmount = participants[participant].stakeAmount;
-                payable(participant).transfer(stakeAmount);
-                participants[participant].stakeReturned = true;
-                totalReturnedStakeAmount += stakeAmount;
+        if (participantCount - completingParticipantCount > 0) {
+            address[] memory beneficiaries;
+            if (shouldUseSupervisorInactionGuard && !isReturnStakeCalled) {
+                // Inaction Guard is true, no supervisor ever called returnStake()
+                beneficiaries = participantList;
+            } else {
+                beneficiaries = unreturnedStakeBeneficiaries;
             }
+            uint256 unreturnedStake = address(this).balance;
+            uint256 beneficiaryShare = unreturnedStake /
+                (participantCount - completingParticipantCount);
+            for (uint256 i = 0; i < beneficiaries.length; i++) {
+                payable(beneficiaries[i]).transfer(beneficiaryShare);
+            }
+
+            emit DistributeUnreturnedStake(
+                msg.sender,
+                beneficiaries,
+                unreturnedStake,
+                beneficiaryShare
+            );
         }
     }
 
@@ -279,39 +263,13 @@ contract PepperStake is IPepperStake {
         }
     }
 
-    function _distributeUnapprovedStake() private {
-        if (participantCount - completingParticipantCount > 0) {
-            address[] memory beneficiaries;
-            if (shouldUseSupervisorInactionGuard && !hasSupervisorActed) {
-                // Inaction Guard is true, no supervisor ever called returnStake()
-                beneficiaries = participantList;
-            } else {
-                beneficiaries = unreturnedStakeBeneficiaries;
-            }
-            uint256 unreturnedStake = address(this).balance;
-            uint256 beneficiaryShare = unreturnedStake /
-                (participantCount - completingParticipantCount);
-            for (uint256 i = 0; i < beneficiaries.length; i++) {
-                payable(beneficiaries[i]).transfer(beneficiaryShare);
-            }
-
-            emit DistributeUnreturnedStake(
-                msg.sender,
-                beneficiaries,
-                unreturnedStake,
-                beneficiaryShare
-            );
-        }
-    }
-
     function postCompletionWindowDistribution() external {
         if (block.timestamp <= completionWindowEndTimestamp)
             revert COMPLETION_WINDOW_NOT_OVER();
         if (isPostReturnWindowDistributionCalled)
             revert POST_COMPLETION_WINDOW_DISTRIBUTION_ALREADY_CALLED();
-        _distributeUnreturnedStake();
         _distributeSponsorContribution();
-        _distributeUnapprovedStake();
+        _distributeUnreturnedStake();
         isPostReturnWindowDistributionCalled = true;
     }
 }
