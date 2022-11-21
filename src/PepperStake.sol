@@ -394,5 +394,6 @@ contract PepperStake is IPepperStake {
         _distributeFees();
         _distributeUnreturnedStake();
         isPostReturnWindowDistributionCalled = true;
+        emit PostCompletionWindowDistribution(msg.sender);
     }
 }

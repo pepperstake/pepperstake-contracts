@@ -34,17 +34,13 @@ contract PepperStakeDeployer is IPepperStakeDeployer {
             protocolFee,
             protocolFeeBeneficiary
         );
+        emit DeployPepperStake(
+            pepperStake,
+            projectCount,
+            _launchData,
+            protocolFee,
+            protocolFeeBeneficiary
+        );
         projectCount++;
-        // emit DeployPepperStake(
-        //     pepperStake,
-        //     _supervisors,
-        //     _stakeAmount,
-        //     _unreturnedStakeBeneficiaries,
-        //     _returnWindowDays,
-        //     _maxParticipants,
-        //     _shouldParticipantsShareUnreturnedStake,
-        //     _shouldUseSupervisorInactionGuard,
-        //     _metadataURI
-        // );
     }
 }

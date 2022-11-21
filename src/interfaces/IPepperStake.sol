@@ -3,7 +3,7 @@ pragma solidity ^0.8.13;
 
 interface IPepperStake {
     event Stake(address indexed participant, uint256 amount);
-    event Sponsor(address indexed participant, uint256 amount);
+    event Sponsor(address indexed sponsor, uint256 amount);
     event ApproveForParticipants(
         address indexed supervisor,
         address[] participants
@@ -14,28 +14,30 @@ interface IPepperStake {
         uint256 fee,
         uint256 returnAmount
     );
-    event DistributeUnreturnedStake(
+    event DistributeSponsorContribution(
         address indexed caller,
         address[] beneficiaries,
-        uint256 totalUnreturnedStake,
+        uint256 amount,
         uint256 beneficiaryShare
     );
     event DistributeFees(
         address indexed caller,
-        uint256 protocolFee,
+        uint256 protocolFeeAmount,
         address protocolFeeBeneficiary,
-        uint256 creatorFee,
+        uint256 creatorFeeAmount,
         address creatorFeeBeneficiary,
-        uint256 supervisorTip,
+        uint256 supervisorTipAmount,
         address[] supervisors,
         uint256 supervisorShare
     );
-    event DistributeSponsorContribution(
+    event DistributeUnreturnedStake(
         address indexed caller,
         address[] beneficiaries,
-        uint256 totalSponsorContribution,
+        uint256 amount,
         uint256 beneficiaryShare
     );
+
+    event PostCompletionWindowDistribution(address indexed caller);
 
     function stake() external payable;
 

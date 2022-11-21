@@ -5,17 +5,13 @@ import "./IPepperStake.sol";
 import "../structs/LaunchPepperStakeData.sol";
 
 interface IPepperStakeDeployer {
-    // event DeployPepperStake(
-    //     IPepperStake indexed pepperStake,
-    //     address[] _supervisors,
-    //     uint256 _stakeAmount,
-    //     address[] _unreturnedStakeBeneficiaries,
-    //     uint256 _returnWindowDays,
-    //     uint256 _maxParticipants,
-    //     bool _shouldParticipantsShareUnreturnedStake,
-    //     bool _shouldUseSupervisorInactionGuard,
-    //     string _metadataURI
-    // );
+    event DeployPepperStake(
+        IPepperStake indexed pepperStake,
+        uint256 projectId,
+        LaunchPepperStakeData launchData,
+        uint256 protocolFee,
+        address protocolFeeBeneficiary
+    );
 
     function deployPepperStake(LaunchPepperStakeData memory _launchData)
         external
