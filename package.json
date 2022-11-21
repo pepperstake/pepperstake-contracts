@@ -1,5 +1,5 @@
 {
-  "name": "pepperstake-contracts",
+  "name": "@pepperstake/pepperstake-contracts",
   "version": "0.1.0",
   "description": "Contracts for PepperStake Protocol",
   "scripts": {
